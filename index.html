@@ -1029,6 +1029,7 @@ function applyFilters() {
               ${a["상태"]==="대기"?`<button class="btn btn-sm btn-success" onclick="approve('${id}')">승인</button><button class="btn btn-sm btn-danger" onclick="showReject('${id}')">반려</button>`:''}
               ${a["상태"]==="승인"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">대기로</button>`:''}
               ${a["상태"]==="반려"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">재검토</button>`:''}
+              <button class="btn btn-sm" style="background:#1c3557;color:white;border:none" onclick="deleteActivity('${id}', event)">🗑 삭제</button>
             </div>
           </div>
         </div>
@@ -1166,6 +1167,17 @@ async function revert(id){
     hideLoading();
     await renderAdminPanel(openKeys);
   }catch(e){ hideLoading(); alert("처리 실패"); }
+}
+async function deleteActivity(id, event){
+  if(event) event.stopPropagation();
+  if(!confirm("이 신청 내역을 삭제할까요?\nGoogle Sheets에서도 영구 삭제됩니다.")) return;
+  const openKeys = getOpenPersonKeys();
+  showLoading("삭제 중...");
+  try{
+    await apiCall({action:"deleteRow", id});
+    hideLoading();
+    await renderAdminPanel(openKeys);
+  }catch(e){ hideLoading(); alert("삭제 실패"); }
 }
 
 function exportExcel(){
