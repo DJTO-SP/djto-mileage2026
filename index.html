@@ -175,6 +175,22 @@
       <button class="btn" style="background:#1c3557;color:white;white-space:nowrap;flex-shrink:0" onclick="openBulkModal()">📋 일괄 신청</button>
     </div>
 
+    <!-- 본인확인 모달 -->
+    <div id="identity-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:20px;padding:32px 28px;max-width:340px;width:92%;box-shadow:0 12px 48px rgba(0,0,0,0.22);text-align:center;animation:popIn 0.22s ease;">
+        <img src="image17.png" alt="꿈순이" style="height:90px;object-fit:contain;mix-blend-mode:multiply;margin-bottom:4px">
+        <div style="background:#fff7f0;border:2px solid #f4a96a;border-radius:14px;padding:14px 18px;margin-bottom:20px;position:relative;">
+          <div style="font-size:16px;font-weight:800;color:#1c3557;margin-bottom:4px" id="identity-name"></div>
+          <div style="font-size:13px;color:#64748b" id="identity-sub"></div>
+          <div style="font-size:14px;font-weight:600;color:#e8610a;margin-top:10px">본인이 맞으신가요? 🙋</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="confirmIdentityNo()" class="btn btn-gray" style="flex:1;padding:12px;">아니요, 수정</button>
+          <button onclick="confirmIdentityYes()" class="btn btn-primary" style="flex:1;padding:12px;">맞아요! ✓</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 일괄 신청 모달 -->
     <div id="bulk-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
       <div style="background:white;border-radius:16px;padding:28px;max-width:520px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease;max-height:90vh;overflow-y:auto;">
@@ -720,6 +736,14 @@ function goStep2() {
     const found=members.find(m=>m.dept===dept && m.empNo===empno && m.name===name);
     if(!found){ document.getElementById("err-name").textContent="등록된 명단에 없는 정보입니다. 부서명·사번·이름을 다시 확인해주세요."; document.getElementById("err-name").style.display="block"; return; }
   }
+  // 본인확인 모달 표시
+  document.getElementById("identity-name").textContent = name;
+  document.getElementById("identity-sub").textContent = dept + " · " + empno;
+  document.getElementById("identity-modal").style.display = "flex";
+}
+
+function confirmIdentityYes() {
+  document.getElementById("identity-modal").style.display = "none";
   document.getElementById("step1-panel").style.display="none";
   document.getElementById("step2-panel").style.display="block";
   document.getElementById("step1-circle").textContent="✓";
@@ -729,6 +753,10 @@ function goStep2() {
   document.getElementById("step2-label").style.fontWeight="600";
   document.getElementById("step-line").style.background="#22c55e";
   renderCatBtns();
+}
+
+function confirmIdentityNo() {
+  document.getElementById("identity-modal").style.display = "none";
 }
 
 // ── 활동신청 Step2 (일괄 입력) ──────────────────────
