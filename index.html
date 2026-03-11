@@ -83,6 +83,28 @@
 </head>
 <body>
 
+<!-- 본인확인 모달 -->
+<div id="confirm-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;padding:32px 28px;max-width:340px;width:92%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.25s ease;">
+    <div style="position:relative;display:inline-block;margin-bottom:8px;">
+      <img src="image01.png" alt="꿈돌이" style="height:160px;object-fit:contain;display:block;">
+      <div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:62%;text-align:center;">
+        <div id="modal-name" style="font-size:14px;font-weight:800;color:#5a3e28;white-space:nowrap;"></div>
+        <div id="modal-info" style="font-size:13px;font-weight:700;color:#7a5c3a;white-space:nowrap;margin-top:2px;"></div>
+      </div>
+    </div>
+    <div style="font-size:17px;font-weight:800;color:#0f2557;margin-bottom:6px;">맞습니까? 🙋</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:24px;">본인 정보를 다시 한번 확인해주세요.</div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="confirmIdentityNo()" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">아니요, 수정</button>
+      <button onclick="confirmIdentityYes()" style="flex:1;padding:12px;border-radius:10px;border:none;background:#e8610a;color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">맞아요! ✓</button>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes popIn { from{transform:scale(0.85);opacity:0} to{transform:scale(1);opacity:1} }
+</style>
+
 <header style="display:none"></header>
 <div class="title-bar" style="display:block;background:#fff;border-bottom:2px solid #e8edf5;min-height:100px;">
   <div class="title-inner" style="max-width:1100px;margin:0 auto;width:100%;display:flex;align-items:flex-end;justify-content:space-between;padding:50px 32px 14px 32px;box-sizing:border-box;">
@@ -619,6 +641,16 @@ function goStep2() {
     const found=members.find(m=>m.dept===dept && m.empNo===empno && m.name===name);
     if(!found){ document.getElementById("err-name").textContent="등록된 명단에 없는 정보입니다. 부서명·사번·이름을 다시 확인해주세요."; document.getElementById("err-name").style.display="block"; return; }
   }
+
+  // 모달 띄우기
+  document.getElementById("modal-name").textContent = name + " 님";
+  document.getElementById("modal-info").textContent = dept + " · " + empno;
+  const modal = document.getElementById("confirm-modal");
+  modal.style.display = "flex";
+}
+
+function confirmIdentityYes() {
+  document.getElementById("confirm-modal").style.display = "none";
   document.getElementById("step1-panel").style.display="none";
   document.getElementById("step2-panel").style.display="block";
   document.getElementById("step1-circle").textContent="✓";
@@ -628,6 +660,10 @@ function goStep2() {
   document.getElementById("step2-label").style.fontWeight="600";
   document.getElementById("step-line").style.background="#22c55e";
   renderCatBtns();
+}
+
+function confirmIdentityNo() {
+  document.getElementById("confirm-modal").style.display = "none";
 }
 
 // ── 활동신청 Step2 (일괄 입력) ──────────────────────
@@ -1029,7 +1065,6 @@ function applyFilters() {
               ${a["상태"]==="대기"?`<button class="btn btn-sm btn-success" onclick="approve('${id}')">승인</button><button class="btn btn-sm btn-danger" onclick="showReject('${id}')">반려</button>`:''}
               ${a["상태"]==="승인"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">대기로</button>`:''}
               ${a["상태"]==="반려"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">재검토</button>`:''}
-              <button class="btn btn-sm" style="background:#1c3557;color:white;border:none" onclick="deleteActivity('${id}', event)">🗑 삭제</button>
             </div>
           </div>
         </div>
@@ -1167,17 +1202,6 @@ async function revert(id){
     hideLoading();
     await renderAdminPanel(openKeys);
   }catch(e){ hideLoading(); alert("처리 실패"); }
-}
-async function deleteActivity(id, event){
-  if(event) event.stopPropagation();
-  if(!confirm("이 신청 내역을 삭제할까요?\nGoogle Sheets에서도 영구 삭제됩니다.")) return;
-  const openKeys = getOpenPersonKeys();
-  showLoading("삭제 중...");
-  try{
-    await apiCall({action:"deleteRow", id});
-    hideLoading();
-    await renderAdminPanel(openKeys);
-  }catch(e){ hideLoading(); alert("삭제 실패"); }
 }
 
 function exportExcel(){
