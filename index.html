@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>변화관리마일리지 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 
@@ -238,16 +239,16 @@
           <div class="error-msg" id="err-name">필수 입력입니다</div>
         </div>
         <button class="btn btn-primary btn-full" onclick="goStep2()">다음 단계 →</button>
-        <div id="draft-banner" style="display:none;margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <span>💾 작성 중인 임시저장 내용이 있어요!</span>
+      </div>
+
+      <div class="card" id="step2-panel" style="display:none">
+        <div id="draft-banner" style="display:none;margin-bottom:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>💾 임시저장 내용이 있어요!</span>
           <div style="display:flex;gap:6px">
             <button onclick="loadDraft()" style="background:#f59e0b;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">불러오기</button>
             <button onclick="clearDraft()" style="background:none;color:#92400e;border:1px solid #fde68a;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">삭제</button>
           </div>
         </div>
-      </div>
-
-      <div class="card" id="step2-panel" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div style="display:flex;align-items:center;gap:8px">
             <button onclick="goStep1Back()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:0">←</button>
@@ -405,6 +406,12 @@
           <span id="filter-count" style="font-size:12px;color:#94a3b8;white-space:nowrap"></span>
         </div>
 
+        <!-- 필터된 건 전체 삭제 -->
+        <div id="bulk-delete-bar" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span id="bulk-delete-desc" style="font-size:13px;color:#b91c1c;font-weight:600"></span>
+          <button onclick="deleteBulkFiltered()" style="background:#ef4444;color:white;border:none;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">🗑 전체 삭제</button>
+        </div>
+
         <div style="display:flex;gap:16px;align-items:flex-start">
           <div id="admin-list" style="flex:1;min-width:0"></div>
           <!-- 증빙파일 미리보기 사이드 패널 -->
@@ -441,18 +448,18 @@
           </div>
 
           <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#0369a1">
-            <div style="font-weight:600;margin-bottom:6px">📋 CSV 파일로 명단 업데이트</div>
+            <div style="font-weight:600;margin-bottom:6px">📋 Excel 파일로 명단 업데이트</div>
             <div>첫 번째 행: <code style="background:#e0f2fe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
-            <div style="margin-top:4px">예시: <code style="background:#e0f2fe;padding:2px 6px;border-radius:4px">경영지원팀,2024001,홍길동</code></div>
-            <div style="margin-top:6px;color:#0284c7">CSV 업로드 시 Google Sheets에 자동 저장됩니다.</div>
+            <div style="margin-top:4px">예시: <code style="background:#e0f2fe;padding:2px 6px;border-radius:4px">경영지원팀 | 2024001 | 홍길동</code></div>
+            <div style="margin-top:6px;color:#0284c7">Excel 업로드 시 Google Sheets에 자동 저장됩니다.</div>
           </div>
 
           <div class="form-group">
-            <label>CSV 파일 업로드 (Sheets에 저장)</label>
-            <div class="file-drop" onclick="document.getElementById('member-csv').click()">
-              <span id="csv-label">클릭하여 CSV 파일 선택</span>
+            <label>Excel 파일 업로드 (Sheets에 저장)</label>
+            <div class="file-drop" id="member-drop-zone" onclick="document.getElementById('member-csv').click()">
+              <span id="csv-label">클릭하거나 파일을 끌어다 놓으세요</span>
             </div>
-            <input type="file" id="member-csv" accept=".csv" style="display:none" onchange="uploadMemberCSV(this)">
+            <input type="file" id="member-csv" accept=".xlsx,.xls" style="display:none" onchange="uploadMemberCSV(this)">
           </div>
 
           <div id="member-preview" style="display:none">
@@ -475,7 +482,7 @@
           </div>
           <div id="member-empty" style="text-align:center;padding:30px;color:#94a3b8;font-size:13px">
             <div style="font-size:32px;margin-bottom:8px">👥</div>
-            <div>등록된 명단이 없습니다.<br>CSV 파일을 업로드해주세요.</div>
+            <div>등록된 명단이 없습니다.<br>Excel 파일을 업로드해주세요.</div>
             <div style="margin-top:8px;font-size:12px;color:#cbd5e1">명단이 없으면 누구나 신청 가능합니다.</div>
           </div>
         </div>
@@ -583,6 +590,7 @@ const DEPTS = ["사장","이사","안전감사팀","기획조정실","전략기�
 
 let activities = [];
 let members = [];
+let membersLoaded = false;
 let selCat = null;
 let selItem = null;
 let fileData = { name:"", data:null };
@@ -617,10 +625,23 @@ function load() {
   try { members = JSON.parse(localStorage.getItem(STORAGE_KEY+"_members")||"[]"); } catch { members=[]; }
   renderCatTags();
   initDday();
-  // Sheets에서 최신 명단 자동 로드 (백그라운드)
   loadMembersFromSheet(false);
-  // Sheets에서 운영항목 로드 (백그라운드)
   loadCategoriesFromSheet();
+
+  // 명단 업로드 드래그앤드롭
+  function bindDrop(zoneId, handler) {
+    const zone = document.getElementById(zoneId);
+    if(!zone) return;
+    zone.addEventListener("dragover", e => { e.preventDefault(); zone.style.borderColor="#1c3557"; zone.style.background="#eff6ff"; });
+    zone.addEventListener("dragleave", () => { zone.style.borderColor=""; zone.style.background=""; });
+    zone.addEventListener("drop", e => {
+      e.preventDefault(); zone.style.borderColor=""; zone.style.background="";
+      const file = e.dataTransfer.files[0];
+      if(file) handler({ files: [file] });
+    });
+  }
+  bindDrop("member-drop-zone", uploadMemberCSV);
+  bindDrop("bulk-drop-zone", handleBulkCSV);
 }
 
 async function loadCategoriesFromSheet() {
@@ -687,7 +708,7 @@ function toggleCatDetail(catId) {
 
 // ── 페이지 이동 ────────────────────────────────────
 function goPage(id) {
-  if(id==="submit") setTimeout(checkDraft, 100);
+  if(id==="submit") { /* draft check moved to confirmIdentityYes */ }
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
@@ -711,11 +732,19 @@ function goStep2() {
   if(!name){ document.getElementById("err-name").textContent="필수 입력입니다"; document.getElementById("err-name").style.display="block"; ok=false; } else { document.getElementById("err-name").style.display="none"; }
   if(!ok) return;
 
+  if(!membersLoaded) {
+    alert("명단 확인 중입니다. 잠시 후 다시 눌러주세요.");
+    return;
+  }
+
   if(members.length>0) {
     const found=members.find(m=>m.dept===dept && m.empNo===empno && m.name===name);
     if(!found){ document.getElementById("err-name").textContent="등록된 명단에 없는 정보입니다. 부서명·사번·이름을 다시 확인해주세요."; document.getElementById("err-name").style.display="block"; return; }
+    // 명단 검증 통과 → 모달 없이 바로 step2
+    confirmIdentityYes();
+    return;
   }
-  // 본인확인 모달 표시
+  // 명단 없는 경우 → 본인확인 모달 표시
   document.getElementById("identity-name").textContent = name;
   document.getElementById("identity-sub").textContent = dept + " · " + empno;
   document.getElementById("identity-modal").style.display = "flex";
@@ -732,6 +761,7 @@ function confirmIdentityYes() {
   document.getElementById("step2-label").style.fontWeight="600";
   document.getElementById("step-line").style.background="#22c55e";
   renderCatBtns();
+  checkDraft();
 }
 
 function confirmIdentityNo() {
@@ -786,7 +816,7 @@ function addActivityRow() {
     <div>
       <label style="font-size:12px">증빙 파일 <span id="row-file-req-${rid}" style="color:#ef4444;display:none">*</span></label>
       <div class="file-drop" style="padding:10px" onclick="document.getElementById('row-file-input-${rid}').click()">
-        <span id="row-file-label-${rid}" style="font-size:12px">클릭하여 파일 선택</span>
+        <span id="row-file-label-${rid}" style="font-size:12px">클릭하거나 파일을 끌어다 놓으세요</span>
       </div>
       <input type="file" id="row-file-input-${rid}" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleRowFile(${rid},this)">
     </div>`;
@@ -794,6 +824,19 @@ function addActivityRow() {
   document.getElementById("activity-rows").appendChild(div);
   document.getElementById("no-activity-msg").style.display = "none";
   document.getElementById("submit-all-btn").style.display = "block";
+
+  // 드래그앤드롭 바인딩
+  const dropZone = div.querySelector(".file-drop");
+  dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.style.borderColor="#1c3557"; dropZone.style.background="#eff6ff"; });
+  dropZone.addEventListener("dragleave", () => { dropZone.style.borderColor=""; dropZone.style.background=""; });
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.style.borderColor=""; dropZone.style.background="";
+    const file = e.dataTransfer.files[0];
+    if(!file) return;
+    const fakeInput = { files: [file] };
+    handleRowFile(rid, fakeInput);
+  });
 }
 
 function removeRow(rid) {
@@ -974,7 +1017,7 @@ function openBulkModal() {
     });
   }
   bulkMembers = [];
-  document.getElementById("bulk-csv-label").textContent = "클릭하여 CSV 파일 선택";
+  document.getElementById("bulk-csv-label").textContent = "클릭하여 파일 선택 (Excel)";
   document.getElementById("bulk-preview").style.display = "none";
   document.getElementById("bulk-cat").value = "";
   document.getElementById("bulk-item").innerHTML = '<option value="">-- 항목 선택 --</option>';
@@ -1002,55 +1045,58 @@ function onBulkCatChange() {
 }
 function handleBulkCSV(input) {
   const f = input.files[0]; if(!f) return;
-  function parseCSV(text) {
-    const lines = text.split(/\r?\n/).filter(l=>l.trim());
-    const start = lines[0].includes("부서") || lines[0].includes("\ubd80\uc11c") ? 1 : 0;
-    bulkMembers = lines.slice(start).map(l => {
-      const parts = l.split(",");
-      return { dept: (parts[0]||"").trim(), empNo: (parts[1]||"").trim(), name: (parts[2]||"").trim() };
-    }).filter(m=>m.dept&&m.empNo&&m.name);
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    const start = (data[0]&&(String(data[0][0]).includes("부서")||String(data[0][1]).includes("사번"))) ? 1 : 0;
+    bulkMembers = data.slice(start).map(r=>({dept:String(r[0]||"").trim(), empNo:String(r[1]||"").trim(), name:String(r[2]||"").trim()})).filter(m=>m.dept&&m.empNo&&m.name);
     document.getElementById("bulk-csv-label").textContent = "📎 " + f.name + " (" + bulkMembers.length + "명)";
-    const tbody = document.getElementById("bulk-preview-body");
-    tbody.innerHTML = bulkMembers.map(m=>`<tr><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.dept}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.empNo}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.name}</td></tr>`).join("");
+    document.getElementById("bulk-preview-body").innerHTML = bulkMembers.map(m=>`<tr><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.dept}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.empNo}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.name}</td></tr>`).join("");
     document.getElementById("bulk-count-label").textContent = bulkMembers.length + "명";
     document.getElementById("bulk-preview").style.display = "block";
-  }
-  // UTF-8 먼저 시도, 깨지면 EUC-KR로 재시도
-  const readerUtf = new FileReader();
-  readerUtf.onload = e => {
-    const text = e.target.result;
-    // 깨진 문자 감지 (replacement character)
-    if(text.includes("\uFFFD") || /[\x80-\xFF]{2}/.test(text)) {
-      const readerEuc = new FileReader();
-      readerEuc.onload = e2 => parseCSV(e2.target.result);
-      readerEuc.readAsText(f, "EUC-KR");
-    } else {
-      parseCSV(text);
-    }
   };
-  readerUtf.readAsText(f, "UTF-8");
+  reader.readAsArrayBuffer(f);
 }
 async function submitBulk() {
   const catId = document.getElementById("bulk-cat").value;
   const itemId = document.getElementById("bulk-item").value;
   if(!catId||!itemId) return alert("분야와 활동 항목을 선택해주세요.");
-  if(!bulkMembers.length) return alert("CSV 파일을 업로드해주세요.");
+  if(!bulkMembers.length) return alert("Excel 파일을 업로드해주세요.");
   const cat = CATEGORIES.find(c=>c.id===catId);
   const item = cat.items.find(i=>i.id===itemId);
   const cnt = parseInt(document.getElementById("bulk-count").value)||1;
   const memo = document.getElementById("bulk-memo").value.trim();
-  if(!confirm(`${bulkMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.\n계속하시겠습니까?`)) return;
+
+  // 명단 검증 (명단이 등록된 경우에만)
+  let validMembers = bulkMembers;
+  if(members.length > 0) {
+    const invalid = bulkMembers.filter(bm =>
+      !members.some(m => m.name === bm.name && m.empNo === bm.empNo)
+    );
+    if(invalid.length > 0) {
+      const names = invalid.map(m => `${m.name}(${m.dept})`).join(", ");
+      const proceed = confirm(`⚠️ 등록 명단에 없는 대상자 ${invalid.length}명이 있어요:\n${names}\n\n이 인원을 제외하고 나머지 ${bulkMembers.length - invalid.length}명만 신청할까요?\n(취소하면 전체 중단)`);
+      if(!proceed) return;
+      validMembers = bulkMembers.filter(bm =>
+        members.some(m => m.name === bm.name && m.empNo === bm.empNo)
+      );
+      if(!validMembers.length) return alert("신청 가능한 대상자가 없습니다.");
+    }
+  }
+
+  if(!confirm(`${validMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.\n계속하시겠습니까?`)) return;
   closeBulkModal();
-  showLoading(`0 / ${bulkMembers.length}명 처리 중...`);
+  showLoading(`0 / ${validMembers.length}명 처리 중...`);
   let success = 0;
-  for(let i=0; i<bulkMembers.length; i++) {
-    document.getElementById("loading-msg").textContent = `${i+1} / ${bulkMembers.length}명 처리 중...`;
+  for(let i=0; i<validMembers.length; i++) {
+    document.getElementById("loading-msg").textContent = `${i+1} / ${validMembers.length}명 처리 중...`;
     try {
       const res = await apiCall({
         action:"submit",
-        dept: bulkMembers[i].dept,
-        empNo: bulkMembers[i].empNo,
-        name: bulkMembers[i].name,
+        dept: validMembers[i].dept,
+        empNo: validMembers[i].empNo,
+        name: validMembers[i].name,
         categoryName: cat.name,
         itemName: item.name,
         points: item.points!==null ? item.points*cnt : null,
@@ -1067,7 +1113,7 @@ async function submitBulk() {
     } catch(e){}
   }
   hideLoading();
-  alert(`✅ 일괄 신청 완료!\n${bulkMembers.length}명 중 ${success}명 성공${success<bulkMembers.length?" / "+(bulkMembers.length-success)+"명 실패":""}`);
+  alert(`✅ 일괄 신청 완료!\n${validMembers.length}명 중 ${success}명 성공${success<validMembers.length?" / "+(validMembers.length-success)+"명 실패":""}`);
 }
 
 // ── 임시저장 ─────────────────────────────────────
@@ -1438,6 +1484,16 @@ function applyFilters() {
 
   document.getElementById("filter-count").textContent = base.length ? `${base.length}건` : "";
 
+  // 필터된 건 전체 삭제 바 표시 여부 (세부분류 필터가 있을 때만)
+  const bar = document.getElementById("bulk-delete-bar");
+  const desc = document.getElementById("bulk-delete-desc");
+  if(subcat && base.length > 0) {
+    bar.style.display = "flex";
+    desc.textContent = `"${subcat}" 항목 ${base.length}건 전체 삭제`;
+  } else {
+    bar.style.display = "none";
+  }
+
   if(!base.length){
     document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:32px;margin-bottom:8px">🔍</div><div>조건에 맞는 신청이 없습니다</div></div>`;
     return;
@@ -1600,7 +1656,32 @@ function resetFilters() {
   document.getElementById("filter-item").innerHTML=`<option value="">세부분류 ▼</option>`;
   document.getElementById("filter-sort").value="name";
   document.getElementById("filter-count").textContent="";
+  document.getElementById("bulk-delete-bar").style.display="none";
   applyFilters();
+}
+
+async function deleteBulkFiltered() {
+  const subcat = document.getElementById("filter-item").value;
+  if(!subcat) return;
+
+  const targets = activities.filter(a => getSubcat(a["활동항목"]) === subcat);
+  if(!targets.length) return;
+
+  const input = prompt(`⚠️ "${subcat}" 항목 ${targets.length}건을 전체 삭제합니다.\n이 작업은 되돌릴 수 없습니다.\n\n계속하려면 "삭제"라고 입력하세요.`);
+  if(input !== "삭제") return;
+
+  showLoading(`0 / ${targets.length}건 삭제 중...`);
+  let success = 0;
+  for(let i = 0; i < targets.length; i++) {
+    document.getElementById("loading-msg").textContent = `${i+1} / ${targets.length}건 삭제 중...`;
+    try {
+      const res = await apiCall({ action:"deleteRow", id: targets[i]["ID"] });
+      if(res.success) success++;
+    } catch(e) {}
+  }
+  hideLoading();
+  alert(`🗑 삭제 완료!\n${targets.length}건 중 ${success}건 삭제됨`);
+  renderAdminPanel();
 }
 async function deletePersonAll(key, name, event) {
   if(event) event.stopPropagation();
@@ -1863,7 +1944,7 @@ async function loadMembersFromSheet(showMsg) {
     } else if(res && res.members && res.members.length === 0) {
       if(syncText) syncText.textContent = "☁️ Sheets에 저장된 명단 없음 (누구나 신청 가능)";
       if(syncBox) { syncBox.style.background="#f0f9ff"; syncBox.style.borderColor="#bae6fd"; syncBox.style.color="#0369a1"; }
-      if(showMsg) alert("Sheets에 저장된 명단이 없습니다. CSV를 업로드해주세요.");
+      if(showMsg) alert("Sheets에 저장된 명단이 없습니다. Excel 파일을 업로드해주세요.");
     } else {
       throw new Error("응답 형식 오류");
     }
@@ -1876,75 +1957,49 @@ async function loadMembersFromSheet(showMsg) {
     if(syncBox) { syncBox.style.background="#fef2f2"; syncBox.style.borderColor="#fca5a5"; syncBox.style.color="#991b1b"; }
     console.warn("명단 자동 로드 실패 (로컬 캐시 사용):", e.message);
     if(showMsg) alert("Google Sheets 연결에 실패했습니다.\n로컬 캐시 명단을 사용합니다.");
+  } finally {
+    membersLoaded = true;
   }
 }
 
-function uploadMemberCSV(input) {
+async function uploadMemberCSV(input) {
   const file = input.files[0]; if(!file) return;
-
-  function parseMemberLines(text) {
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    const parsed = []; let startIdx = 0;
-    if(lines[0] && (lines[0].includes("부서") || lines[0].includes("사번") || lines[0].includes("이름"))) startIdx = 1;
-    for(let i = startIdx; i < lines.length; i++) {
-      const cols = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g, ""));
-      if(cols.length >= 3 && cols[0] && cols[1] && cols[2]) parsed.push({dept:cols[0], empNo:cols[1], name:cols[2]});
-    }
-    return parsed;
-  }
-
-  function isGarbled(text) {
-    // 한글이 깨졌는지 확인 (물음표 문자 또는 대체문자 비율)
-    const suspicious = (text.match(/[ufffd\u0000-\u0008]/g) || []).length;
-    return suspicious > 3;
-  }
-
-  async function processParsed(parsed) {
-    if(!parsed.length){ alert("CSV 파일에서 데이터를 읽을 수 없습니다.\n형식: 부서명,사번,이름"); return; }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    const start = (data[0]&&(String(data[0][0]).includes("부서")||String(data[0][1]).includes("사번"))) ? 1 : 0;
+    const parsed = data.slice(start).map(r=>({dept:String(r[0]||"").trim(), empNo:String(r[1]||"").trim(), name:String(r[2]||"").trim()})).filter(m=>m.dept&&m.empNo&&m.name);
+    if(!parsed.length){ alert("파일에서 데이터를 읽을 수 없습니다.\n형식: 부서명 | 사번 | 이름"); return; }
     showLoading("명단을 Google Sheets에 저장 중...");
     try {
-      const res = await apiCall({ action: "saveMembers", members: JSON.stringify(parsed) });
+      const res = await apiCall({ action:"saveMembers", members:JSON.stringify(parsed) });
       hideLoading();
-      if(res && (res.ok || res.success)) {
+      if(res && (res.ok||res.success)) {
         members = parsed; saveMembers();
         document.getElementById("csv-label").textContent = `📎 ${file.name} (${parsed.length}명)`;
         renderMemberPanel();
         const syncText = document.getElementById("member-sync-text");
-        const syncBox = document.getElementById("member-sync-box");
+        const syncBox  = document.getElementById("member-sync-box");
         if(syncText) syncText.textContent = `✅ Sheets 저장 완료 (${members.length}명)`;
         if(syncBox) { syncBox.style.background="#f0fdf4"; syncBox.style.borderColor="#86efac"; syncBox.style.color="#15803d"; }
         alert(`✅ ${parsed.length}명의 명단이 저장되었습니다.`);
-      } else {
-        throw new Error(res && res.error ? res.error : "저장 응답 오류");
-      }
-    } catch(err) {
+      } else throw new Error();
+    } catch {
       hideLoading();
       members = parsed; saveMembers();
       document.getElementById("csv-label").textContent = `📎 ${file.name} (${parsed.length}명)`;
       renderMemberPanel();
       alert(`✅ ${parsed.length}명 등록 완료!\n(Sheets 동기화는 실패했지만 로컬에 저장됐어요)`);
     }
-  }
-
-  // UTF-8 먼저 시도, 깨지면 EUC-KR 재시도
-  const readerUtf = new FileReader();
-  readerUtf.onload = e => {
-    const text = e.target.result;
-    if(isGarbled(text)) {
-      const readerEuc = new FileReader();
-      readerEuc.onload = e2 => processParsed(parseMemberLines(e2.target.result));
-      readerEuc.readAsText(file, "EUC-KR");
-    } else {
-      processParsed(parseMemberLines(text));
-    }
   };
-  readerUtf.readAsText(file, "UTF-8");
+  reader.readAsArrayBuffer(file);
 }
 
 function clearMembers(){
   if(!confirm("명단을 초기화하시겠습니까?\n초기화하면 누구나 신청 가능합니다.")) return;
   members=[]; saveMembers();
-  document.getElementById("csv-label").textContent="클릭하여 CSV 파일 선택";
+  document.getElementById("csv-label").textContent="클릭하여 파일 선택 (Excel)";
   const syncText = document.getElementById("member-sync-text");
   const syncBox = document.getElementById("member-sync-box");
   if(syncText) syncText.textContent = "☁️ 명단 없음 (누구나 신청 가능)";
@@ -2162,9 +2217,9 @@ function saveItemsToSheet() {
           <button onclick="closeBulkModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer">✕</button>
         </div>
         <div style="background:#f0f6ff;border-radius:8px;padding:12px 14px;font-size:13px;color:#1e40af;margin-bottom:16px;border-left:3px solid #3b82f6">
-          <div style="font-weight:600;margin-bottom:4px">CSV 파일 형식 안내</div>
+          <div style="font-weight:600;margin-bottom:4px">Excel 파일 형식 안내</div>
           <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
-          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀,2024001,홍길동</code></div>
+          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀 | 2024001 | 홍길동</code></div>
         </div>
         <!-- 활동 선택 -->
         <div style="margin-bottom:14px">
@@ -2191,11 +2246,11 @@ function saveItemsToSheet() {
         </div>
         <!-- CSV 업로드 -->
         <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 CSV 파일 <span style="color:#ef4444">*</span></label>
-          <div class="file-drop" onclick="document.getElementById('bulk-csv-input').click()">
-            <span id="bulk-csv-label">클릭하여 CSV 파일 선택</span>
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 Excel 파일 <span style="color:#ef4444">*</span></label>
+          <div class="file-drop" id="bulk-drop-zone" onclick="document.getElementById('bulk-csv-input').click()">
+            <span id="bulk-csv-label">클릭하거나 파일을 끌어다 놓으세요</span>
           </div>
-          <input type="file" id="bulk-csv-input" accept=".csv" style="display:none" onchange="handleBulkCSV(this)">
+          <input type="file" id="bulk-csv-input" accept=".xlsx,.xls" style="display:none" onchange="handleBulkCSV(this)">
         </div>
         <!-- 미리보기 -->
         <div id="bulk-preview" style="display:none;margin-bottom:16px">
