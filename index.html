@@ -214,9 +214,14 @@
           <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">새 연도 입력</label>
           <input type="number" id="new-year-input" value="2027" min="2025" max="2099" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;text-align:center;outline:none;box-sizing:border-box">
         </div>
-        <div style="margin-bottom:20px">
+        <div style="margin-bottom:16px">
           <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">확인 문구 입력 <span style="font-weight:400;color:#94a3b8">("초기화"를 입력하세요)</span></label>
           <input type="text" id="reset-confirm-input" placeholder="초기화" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">🔐 관리자 비밀번호 재입력</label>
+          <input type="password" id="reset-pw-input" placeholder="비밀번호를 입력하세요" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+          <div id="reset-pw-error" style="display:none;color:#ef4444;font-size:12px;margin-top:4px">비밀번호가 올바르지 않습니다</div>
         </div>
         <div style="display:flex;gap:10px">
           <button onclick="document.getElementById('year-reset-modal').style.display='none'" class="btn btn-gray" style="flex:1;padding:12px">취소</button>
@@ -610,7 +615,7 @@
 
 
 <script>
-const ADMIN_PW = "admin1234";
+const ADMIN_PW = "alsk0118**";
 const STORAGE_KEY = "cmm_2026";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4DBReqxinCxpcLyWMm0G9p3i3IlwTfLR6pwSnW9ms1AHlfbVqZbl_7lmEh5EbkBoo/exec";
 
@@ -1333,6 +1338,8 @@ async function checkDriveStorage() {
 
 function showYearResetModal() {
   document.getElementById("reset-confirm-input").value = "";
+  document.getElementById("reset-pw-input").value = "";
+  document.getElementById("reset-pw-error").style.display = "none";
   document.getElementById("new-year-input").value = new Date().getFullYear() + 1;
   document.getElementById("year-reset-modal").style.display = "flex";
 }
@@ -1342,6 +1349,14 @@ async function executeYearReset() {
   if(confirmText !== "초기화") return alert("'초기화'를 정확히 입력해주세요.");
   const newYear = parseInt(document.getElementById("new-year-input").value);
   if(!newYear || newYear < 2025) return alert("올바른 연도를 입력해주세요.");
+  const pwInput = document.getElementById("reset-pw-input").value;
+  if(pwInput !== ADMIN_PW) {
+    document.getElementById("reset-pw-error").style.display = "block";
+    document.getElementById("reset-pw-input").focus();
+    return;
+  }
+  document.getElementById("reset-pw-error").style.display = "none";
+  if(!confirm("⚠️ 마지막 확인!\n모든 신청 데이터가 영구 삭제됩니다.\n정말 초기화하시겠습니까?")) return;
 
   document.getElementById("year-reset-modal").style.display = "none";
   showLoading("초기화 중... 잠시 기다려주세요.");
@@ -1575,6 +1590,7 @@ function applyFilters() {
             <div style="font-size:11px;color:#94a3b8">총 신청</div>
             <div style="font-size:18px;font-weight:800;color:#1e3a8a">${total}<span style="font-size:12px;font-weight:400">점</span></div>
           </div>
+          <button onclick="deletePersonAll('${key}','${person.name}',event)" style="background:#fff0f0;color:#ef4444;border:1px solid #fecaca;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap" title="${person.name} 전체 삭제">🗑 전체</button>
           <span id="arrow-${safeKey}" style="font-size:18px;color:#94a3b8;transition:transform 0.2s">▾</span>
         </div>
       </div>
@@ -1651,6 +1667,31 @@ function resetFilters() {
   document.getElementById("filter-count").textContent="";
   applyFilters();
 }
+async function deletePersonAll(key, name, event) {
+  if(event) event.stopPropagation();
+  const parts = key.split("__");
+  // key는 "부서__사번__이름" 형식
+  const personItems = activities.filter(a => {
+    const k = `${a["부서"]}__${a["사번"]}__${a["이름"]}`;
+    return k === key;
+  });
+  if(!personItems.length) return alert("삭제할 내역이 없습니다.");
+  if(!confirm(`${name} 님의 신청 내역 ${personItems.length}건을 모두 삭제할까요?
+Google Sheets에서도 영구 삭제됩니다.`)) return;
+  const openKeys = getOpenPersonKeys();
+  showLoading(`${name} 님 내역 삭제 중...`);
+  let success = 0;
+  for(const a of personItems) {
+    try {
+      const res = await apiCall({action:"deleteRow", id: a["ID"]});
+      if(res.success) success++;
+    } catch(e) {}
+  }
+  hideLoading();
+  if(success < personItems.length) alert(`${personItems.length}건 중 ${success}건 삭제 완료, ${personItems.length - success}건 실패`);
+  await renderAdminPanel(openKeys);
+}
+
 async function deleteActivity(id, event) {
   if(event) event.stopPropagation();
   if(!confirm("이 신청 내역을 삭제할까요?\nGoogle Sheets에서도 영구 삭제됩니다.")) return;
