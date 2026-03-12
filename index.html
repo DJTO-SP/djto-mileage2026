@@ -1855,45 +1855,65 @@ async function loadMembersFromSheet(showMsg) {
 }
 
 function uploadMemberCSV(input) {
-  const file=input.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    const lines=e.target.result.split(/\r?\n/).filter(l=>l.trim());
-    const parsed=[]; let startIdx=0;
-    if(lines[0].includes("부서")||lines[0].includes("사번")||lines[0].includes("이름")) startIdx=1;
-    for(let i=startIdx;i<lines.length;i++){
-      const cols=lines[i].split(",").map(c=>c.trim().replace(/^"|"$/g,""));
-      if(cols.length>=3&&cols[0]&&cols[1]&&cols[2]) parsed.push({dept:cols[0],empNo:cols[1],name:cols[2]});
-    }
-    if(!parsed.length){ alert("CSV 파일에서 데이터를 읽을 수 없습니다.\n형식: 부서명,사번,이름"); return; }
+  const file = input.files[0]; if(!file) return;
 
-    // Google Sheets에 저장
+  function parseMemberLines(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const parsed = []; let startIdx = 0;
+    if(lines[0] && (lines[0].includes("부서") || lines[0].includes("사번") || lines[0].includes("이름"))) startIdx = 1;
+    for(let i = startIdx; i < lines.length; i++) {
+      const cols = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+      if(cols.length >= 3 && cols[0] && cols[1] && cols[2]) parsed.push({dept:cols[0], empNo:cols[1], name:cols[2]});
+    }
+    return parsed;
+  }
+
+  function isGarbled(text) {
+    // 한글이 깨졌는지 확인 (물음표 문자 또는 대체문자 비율)
+    const suspicious = (text.match(/[ufffd\u0000-\u0008]/g) || []).length;
+    return suspicious > 3;
+  }
+
+  async function processParsed(parsed) {
+    if(!parsed.length){ alert("CSV 파일에서 데이터를 읽을 수 없습니다.\n형식: 부서명,사번,이름"); return; }
     showLoading("명단을 Google Sheets에 저장 중...");
     try {
       const res = await apiCall({ action: "saveMembers", members: JSON.stringify(parsed) });
       hideLoading();
-      if(res && res.ok) {
+      if(res && (res.ok || res.success)) {
         members = parsed; saveMembers();
-        document.getElementById("csv-label").textContent=`📎 ${file.name} (${parsed.length}명)`;
+        document.getElementById("csv-label").textContent = `📎 ${file.name} (${parsed.length}명)`;
         renderMemberPanel();
         const syncText = document.getElementById("member-sync-text");
         const syncBox = document.getElementById("member-sync-box");
         if(syncText) syncText.textContent = `✅ Sheets 저장 완료 (${members.length}명)`;
         if(syncBox) { syncBox.style.background="#f0fdf4"; syncBox.style.borderColor="#86efac"; syncBox.style.color="#15803d"; }
-        alert(`✅ ${parsed.length}명의 명단이 Google Sheets에 저장되었습니다.\n다른 PC에서도 자동으로 불러옵니다.`);
+        alert(`✅ ${parsed.length}명의 명단이 저장되었습니다.`);
       } else {
-        throw new Error("저장 응답 오류");
+        throw new Error(res && res.error ? res.error : "저장 응답 오류");
       }
-    } catch(e) {
+    } catch(err) {
       hideLoading();
-      // Sheets 저장 실패 시 로컬에만 저장
       members = parsed; saveMembers();
-      document.getElementById("csv-label").textContent=`📎 ${file.name} (${parsed.length}명, 로컬만)`;
+      document.getElementById("csv-label").textContent = `📎 ${file.name} (${parsed.length}명)`;
       renderMemberPanel();
-      alert(`⚠️ Sheets 저장 실패. 로컬에만 저장되었습니다.\n(Apps Script에 saveMembers 액션 추가 필요)\n\n${parsed.length}명 로컬 등록 완료.`);
+      alert(`✅ ${parsed.length}명 등록 완료!\n(Sheets 동기화는 실패했지만 로컬에 저장됐어요)`);
+    }
+  }
+
+  // UTF-8 먼저 시도, 깨지면 EUC-KR 재시도
+  const readerUtf = new FileReader();
+  readerUtf.onload = e => {
+    const text = e.target.result;
+    if(isGarbled(text)) {
+      const readerEuc = new FileReader();
+      readerEuc.onload = e2 => processParsed(parseMemberLines(e2.target.result));
+      readerEuc.readAsText(file, "EUC-KR");
+    } else {
+      processParsed(parseMemberLines(text));
     }
   };
-  reader.readAsText(file,"UTF-8");
+  readerUtf.readAsText(file, "UTF-8");
 }
 
 function clearMembers(){
