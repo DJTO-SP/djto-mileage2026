@@ -110,7 +110,7 @@
     <div class="title-left" onclick="goPage('home')" style="display:flex;align-items:flex-end;cursor:pointer;">
       <div class="title-text">
         <div class="main">대전관광공사 <em>변화관리마일리지</em></div>
-        <div class="sub">2026년도 운영시스템</div>
+        <div class="sub year-label">2026년도 운영시스템</div>
       </div>
     </div>
     <img class="title-logo-img" src="image-logo.png" alt="꿈씨패밀리">
@@ -192,6 +192,35 @@
         <div style="display:flex;gap:10px;">
           <button onclick="confirmIdentityNo()" class="btn btn-gray" style="flex:1;padding:12px;">아니요, 수정</button>
           <button onclick="confirmIdentityYes()" class="btn btn-primary" style="flex:1;padding:12px;">맞아요! ✓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 연말 초기화 모달 -->
+    <div id="year-reset-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:16px;padding:28px;max-width:420px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:40px;margin-bottom:8px">🔄</div>
+          <div style="font-size:17px;font-weight:800;color:#0f2557;margin-bottom:6px">연말 정산 초기화</div>
+          <div style="font-size:13px;color:#64748b;line-height:1.6">새 연도를 입력하면 아래 내용이 초기화됩니다.</div>
+        </div>
+        <div style="background:#fff0f0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#b91c1c;line-height:1.8">
+          ⚠️ Google Sheets 신청 데이터 전체 삭제<br>
+          ⚠️ 시스템 연도 변경<br>
+          ⚠️ D-day 마감일 초기화<br>
+          <span style="font-size:12px;color:#94a3b8;margin-top:4px;display:block">※ 실행 전 반드시 Excel 다운로드로 백업하세요!</span>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">새 연도 입력</label>
+          <input type="number" id="new-year-input" value="2027" min="2025" max="2099" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;text-align:center;outline:none;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">확인 문구 입력 <span style="font-weight:400;color:#94a3b8">("초기화"를 입력하세요)</span></label>
+          <input type="text" id="reset-confirm-input" placeholder="초기화" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+        </div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('year-reset-modal').style.display='none'" class="btn btn-gray" style="flex:1;padding:12px">취소</button>
+          <button onclick="executeYearReset()" style="flex:1;padding:12px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">초기화 실행</button>
         </div>
       </div>
     </div>
@@ -421,6 +450,7 @@
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="exportExcel()" style="font-size:13px">📥 Excel 다운로드</button>
+          <button class="btn" onclick="showYearResetModal()" style="font-size:13px;background:#fff0f0;color:#ef4444;border:1.5px solid #fecaca">🔄 연말 초기화</button>
           <button class="btn btn-gray btn-sm" onclick="adminLogout()">로그아웃</button>
         </div>
       </div>
@@ -1247,6 +1277,51 @@ function doLogin() {
     box.title = "클릭하여 마감일 설정";
     renderAdminPanel();
   } else { document.getElementById("pw-error").style.display="block"; }
+}
+
+function showYearResetModal() {
+  document.getElementById("reset-confirm-input").value = "";
+  document.getElementById("new-year-input").value = new Date().getFullYear() + 1;
+  document.getElementById("year-reset-modal").style.display = "flex";
+}
+
+async function executeYearReset() {
+  const confirmText = document.getElementById("reset-confirm-input").value.trim();
+  if(confirmText !== "초기화") return alert("'초기화'를 정확히 입력해주세요.");
+  const newYear = parseInt(document.getElementById("new-year-input").value);
+  if(!newYear || newYear < 2025) return alert("올바른 연도를 입력해주세요.");
+
+  document.getElementById("year-reset-modal").style.display = "none";
+  showLoading("초기화 중... 잠시 기다려주세요.");
+
+  try {
+    const res = await apiCall({action: "clearAllData"});
+    if(!res.success) throw new Error(res.error||"실패");
+
+    // 연도 업데이트
+    document.title = "변화관리마일리지 " + newYear;
+    document.querySelectorAll(".year-label").forEach(el => el.textContent = newYear + "년도 운영시스템");
+
+    // D-day 초기화
+    localStorage.removeItem("cmm_dday");
+    const numEl = document.getElementById("dday-number");
+    const dateEl = document.getElementById("dday-date");
+    const labelEl = document.getElementById("dday-label");
+    if(numEl) numEl.textContent = "-";
+    if(dateEl) dateEl.textContent = "";
+    if(labelEl) labelEl.textContent = "설정하려면 클릭";
+
+    // 임시저장 초기화
+    localStorage.removeItem(DRAFT_KEY);
+
+    hideLoading();
+    alert("✅ 초기화 완료!
+" + newYear + "년도 운영을 시작하세요.");
+    renderAdminPanel();
+  } catch(e) {
+    hideLoading();
+    alert("초기화 실패: " + e.message);
+  }
 }
 
 function adminLogout() {
