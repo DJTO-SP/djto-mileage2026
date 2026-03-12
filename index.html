@@ -160,8 +160,13 @@
       </div>
     </div>
     <div class="card">
-      <div style="font-weight:700;color:#0f2557;margin-bottom:14px;font-size:15px">📂 운영 분야 <span style="font-size:12px;font-weight:400;color:#94a3b8">(분야를 클릭하면 항목을 확인할 수 있어요)</span></div>
-      <div id="cat-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+        <div style="flex:1">
+          <div style="font-weight:700;color:#0f2557;margin-bottom:14px;font-size:15px">📂 운영 분야 <span style="font-size:12px;font-weight:400;color:#94a3b8">(분야를 클릭하면 항목을 확인할 수 있어요)</span></div>
+          <div id="cat-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+        <img src="image04.png" alt="꿈돌이 친구들" style="height:110px;object-fit:contain;mix-blend-mode:multiply;flex-shrink:0;margin-top:-8px">
+      </div>
       <div id="cat-detail" style="display:none;margin-top:20px;border-top:1px solid #f1f5f9;padding-top:20px"></div>
     </div>
   </div>
@@ -310,6 +315,13 @@
           <div class="error-msg" id="err-name">필수 입력입니다</div>
         </div>
         <button class="btn btn-primary btn-full" onclick="goStep2()">다음 단계 →</button>
+        <div id="draft-banner" style="display:none;margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>💾 작성 중인 임시저장 내용이 있어요!</span>
+          <div style="display:flex;gap:6px">
+            <button onclick="loadDraft()" style="background:#f59e0b;color:white;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">불러오기</button>
+            <button onclick="clearDraft()" style="background:none;color:#92400e;border:1px solid #fde68a;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit">삭제</button>
+          </div>
+        </div>
       </div>
 
       <div class="card" id="step2-panel" style="display:none">
@@ -318,6 +330,7 @@
             <button onclick="goStep1Back()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#64748b;padding:0">←</button>
             <div style="font-weight:700;color:#0f2557">📂 활동 선택 및 입력</div>
           </div>
+          <button onclick="saveDraft()" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 14px;font-size:12px;color:#64748b;cursor:pointer;font-family:inherit;font-weight:600">💾 임시저장</button>
           <button class="btn btn-primary" onclick="addActivityRow()" style="font-size:13px">+ 활동 추가</button>
         </div>
 
@@ -424,6 +437,11 @@
         <div class="tabs" id="admin-tabs"></div>
 
         <!-- 필터 바 -->
+        <!-- 이름/부서 검색 -->
+        <div style="position:relative;margin-bottom:10px">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:14px">🔍</span>
+          <input type="text" id="admin-search" placeholder="이름 또는 부서명으로 검색..." oninput="applyFilters()" style="width:100%;padding:10px 12px 10px 36px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color 0.15s" onfocus="this.style.borderColor='#1c3557'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto auto;gap:8px;margin-bottom:14px;align-items:center">
           <select id="filter-dept" onchange="applyFilters()" style="padding:9px 12px;border:none;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#1c3557;color:white;cursor:pointer;font-weight:700;text-align:center;width:100%">
             <option value="">부서 ▼</option>
@@ -709,6 +727,7 @@ function toggleCatDetail(catId) {
 
 // ── 페이지 이동 ────────────────────────────────────
 function goPage(id) {
+  if(id==="submit") setTimeout(checkDraft, 100);
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
@@ -914,7 +933,7 @@ async function submitAllActivities() {
     try{ const res=await apiCall(toSubmit[i]); if(res.success) success++; }catch(e){}
   }
   hideLoading();
-  if(success===toSubmit.length){
+  if(success===toSubmit.length){ localStorage.removeItem(DRAFT_KEY);
     document.getElementById("submit-form").style.display="none";
     document.getElementById("done-screen").style.display="block";
   } else {
@@ -1015,10 +1034,9 @@ function onBulkCatChange() {
 }
 function handleBulkCSV(input) {
   const f = input.files[0]; if(!f) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const lines = e.target.result.split(/\r?\n/).filter(l=>l.trim());
-    const start = lines[0].includes("부서") ? 1 : 0;
+  function parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    const start = lines[0].includes("부서") || lines[0].includes("\ubd80\uc11c") ? 1 : 0;
     bulkMembers = lines.slice(start).map(l => {
       const parts = l.split(",");
       return { dept: (parts[0]||"").trim(), empNo: (parts[1]||"").trim(), name: (parts[2]||"").trim() };
@@ -1028,8 +1046,21 @@ function handleBulkCSV(input) {
     tbody.innerHTML = bulkMembers.map(m=>`<tr><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.dept}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.empNo}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.name}</td></tr>`).join("");
     document.getElementById("bulk-count-label").textContent = bulkMembers.length + "명";
     document.getElementById("bulk-preview").style.display = "block";
+  }
+  // UTF-8 먼저 시도, 깨지면 EUC-KR로 재시도
+  const readerUtf = new FileReader();
+  readerUtf.onload = e => {
+    const text = e.target.result;
+    // 깨진 문자 감지 (replacement character)
+    if(text.includes("\uFFFD") || /[\x80-\xFF]{2}/.test(text)) {
+      const readerEuc = new FileReader();
+      readerEuc.onload = e2 => parseCSV(e2.target.result);
+      readerEuc.readAsText(f, "EUC-KR");
+    } else {
+      parseCSV(text);
+    }
   };
-  reader.readAsText(f, "UTF-8");
+  readerUtf.readAsText(f, "UTF-8");
 }
 async function submitBulk() {
   const catId = document.getElementById("bulk-cat").value;
@@ -1064,6 +1095,78 @@ async function submitBulk() {
   }
   hideLoading();
   alert(`✅ 일괄 신청 완료!\n${bulkMembers.length}명 중 ${success}명 성공${success<bulkMembers.length?" / "+(bulkMembers.length-success)+"명 실패":""}`);
+}
+
+// ── 임시저장 ─────────────────────────────────────
+const DRAFT_KEY = "cmm_draft_2026";
+function saveDraft() {
+  const dept = document.getElementById("s-dept").value;
+  const empno = document.getElementById("s-empno").value.trim();
+  const name = document.getElementById("s-name").value.trim();
+  if(!dept && !empno && !name) return alert("저장할 내용이 없어요.");
+  const rows = [];
+  const rowEls = document.getElementById("activity-rows").children;
+  for(const row of rowEls) {
+    const rid = parseInt(row.id.replace("arow-",""));
+    const catEl = document.getElementById("row-cat-"+rid);
+    const itemEl = document.getElementById("row-item-"+rid);
+    const cntEl = document.getElementById("row-count-"+rid);
+    const memoEl = document.getElementById("row-memo-"+rid);
+    rows.push({
+      cat: catEl?.value||"", item: itemEl?.value||"",
+      count: cntEl?.value||"1", memo: memoEl?.value||""
+    });
+  }
+  const draft = { dept, empno, name, rows, savedAt: new Date().toLocaleString() };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  // 저장 완료 피드백
+  const btn = event?.target;
+  if(btn){ const orig=btn.textContent; btn.textContent="✅ 저장됨"; btn.style.color="#16a34a"; setTimeout(()=>{ btn.textContent=orig; btn.style.color="#64748b"; },1500); }
+}
+function checkDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if(!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    const banner = document.getElementById("draft-banner");
+    if(banner) { banner.style.display="flex"; banner.querySelector("span").textContent = "💾 임시저장 내용이 있어요! ("+d.savedAt+")"; }
+  } catch {}
+}
+function loadDraft() {
+  const raw = localStorage.getItem(DRAFT_KEY);
+  if(!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    document.getElementById("s-dept").value = d.dept||"";
+    document.getElementById("s-empno").value = d.empno||"";
+    document.getElementById("s-name").value = d.name||"";
+    document.getElementById("draft-banner").style.display="none";
+    // 유효성 통과하면 step2로 이동 후 행 복원
+    if(d.dept && d.empno && d.name) {
+      confirmIdentityYes();
+      setTimeout(()=>{
+        document.getElementById("activity-rows").innerHTML="";
+        rowCount=0; rowFiles={};
+        document.getElementById("no-activity-msg").style.display="block";
+        document.getElementById("submit-all-btn").style.display="none";
+        (d.rows||[]).forEach(r=>{
+          addActivityRow();
+          const rid=rowCount;
+          setTimeout(()=>{
+            if(r.cat){ document.getElementById("row-cat-"+rid).value=r.cat; onRowCatChange(rid);
+              setTimeout(()=>{ if(r.item) document.getElementById("row-item-"+rid).value=r.item; onRowItemChange(rid); },100);
+            }
+            if(r.count) document.getElementById("row-count-"+rid).value=r.count;
+            if(r.memo) document.getElementById("row-memo-"+rid).value=r.memo;
+          },150);
+        });
+      },200);
+    }
+  } catch(e){ alert("임시저장 불러오기 실패"); }
+}
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  document.getElementById("draft-banner").style.display="none";
 }
 
 function resetSubmit() {
@@ -1126,6 +1229,7 @@ async function doLookup() {
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
               ${a["마일리지"]?`<span style="font-size:14px;font-weight:700;color:#1e3a8a">${a["마일리지"]}점</span>`:''}
               <span class="badge" style="background:${s.bg};color:${s.color};border:1px solid ${s.color}40">${s.label}</span>
+              ${a["상태"]==="대기"?`<button onclick="deleteMy('${a["ID"]}')" style="background:#fff0f0;color:#ef4444;border:1px solid #fecaca;border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;font-family:inherit" title="삭제">🗑</button>`:''}
             </div>
           </div>
         </div>`;}).join("")}
@@ -1253,9 +1357,11 @@ function applyFilters() {
   const sort  = document.getElementById("filter-sort").value;
   const statusMap={승인:{label:"승인",color:"#16a34a",bg:"#f0fdf4"},대기:{label:"검토 대기",color:"#d97706",bg:"#fffbeb"},반려:{label:"반려",color:"#ef4444",bg:"#fef2f2"}};
 
+  const search = (document.getElementById("admin-search")?.value||"").trim();
   let base = adminFilter==="all" ? [...activities] :
     activities.filter(a=>a["상태"]===(adminFilter==="pending"?"대기":adminFilter==="approved"?"승인":"반려"));
 
+  if(search) base = base.filter(a=>(a["이름"]||"").includes(search)||(a["부서"]||"").includes(search));
   if(dept)   base = base.filter(a=>a["부서"]===dept);
   if(cat)    base = base.filter(a=>a["분야"]===cat);
   if(subcat) base = base.filter(a=>getSubcat(a["활동항목"])===subcat);
@@ -1309,6 +1415,7 @@ function applyFilters() {
               ${a["상태"]==="대기"?`<button class="btn btn-sm btn-success" onclick="approve('${id}')">승인</button><button class="btn btn-sm btn-danger" onclick="showReject('${id}')">반려</button>`:''}
               ${a["상태"]==="승인"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">대기로</button>`:''}
               ${a["상태"]==="반려"?`<button class="btn btn-sm btn-gray" onclick="revert('${id}')">재검토</button>`:''}
+              <button class="btn btn-sm" style="background:#fff0f0;color:#ef4444;border:1px solid #fecaca" onclick="deleteActivity('${id}',event)" title="삭제">🗑</button>
             </div>
           </div>
         </div>
@@ -1410,6 +1517,7 @@ function togglePerson(key) {
 }
 
 function resetFilters() {
+  document.getElementById("admin-search").value="";
   document.getElementById("filter-dept").value="";
   document.getElementById("filter-cat").value="";
   document.getElementById("filter-item").innerHTML=`<option value="">세부분류 ▼</option>`;
@@ -1417,6 +1525,34 @@ function resetFilters() {
   document.getElementById("filter-count").textContent="";
   applyFilters();
 }
+async function deleteActivity(id, event) {
+  if(event) event.stopPropagation();
+  if(!confirm("이 신청 내역을 삭제할까요?\nGoogle Sheets에서도 영구 삭제됩니다.")) return;
+  const openKeys = getOpenPersonKeys();
+  showLoading("삭제 중...");
+  try {
+    await apiCall({action:"deleteRow", id});
+    hideLoading();
+    await renderAdminPanel(openKeys);
+  } catch(e) {
+    hideLoading();
+    alert("삭제 실패. 다시 시도해주세요.");
+  }
+}
+
+async function deleteMy(id) {
+  if(!confirm("이 신청 내역을 삭제할까요?\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  showLoading("삭제 중...");
+  try {
+    await apiCall({action:"deleteRow", id});
+    hideLoading();
+    doLookup(); // 목록 새로고침
+  } catch(e) {
+    hideLoading();
+    alert("삭제 실패. 다시 시도해주세요.");
+  }
+}
+
 async function approve(id){
   const openKeys = getOpenPersonKeys();
   showLoading("승인 처리 중...");
