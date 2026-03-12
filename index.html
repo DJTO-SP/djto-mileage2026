@@ -179,85 +179,6 @@
       <div class="notice" style="margin-bottom:0;flex:1">✅ 제출한 내용은 Google Sheets에 자동으로 저장되며, 관리자가 검토 후 승인/반려 처리합니다.</div>
       <button class="btn" style="background:#1c3557;color:white;white-space:nowrap;flex-shrink:0" onclick="openBulkModal()">📋 일괄 신청</button>
     </div>
-        <div style="display:flex;gap:10px;">
-          <button onclick="confirmIdentityNo()" class="btn btn-gray" style="flex:1;padding:12px;">아니요, 수정</button>
-          <button onclick="confirmIdentityYes()" class="btn btn-primary" style="flex:1;padding:12px;">맞아요! ✓</button>
-        </div>
-      </div>
-    </div>
-        <div style="background:#fff0f0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#b91c1c;line-height:1.8">
-          ⚠️ Google Sheets 신청 데이터 전체 삭제<br>
-          ⚠️ 시스템 연도 변경<br>
-          ⚠️ D-day 마감일 초기화<br>
-          <span style="font-size:12px;color:#94a3b8;margin-top:4px;display:block">※ 실행 전 반드시 Excel 다운로드로 백업하세요!</span>
-        </div>
-        <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">새 연도 입력</label>
-          <input type="number" id="new-year-input" value="2027" min="2025" max="2099" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;text-align:center;outline:none;box-sizing:border-box">
-        </div>
-        <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">확인 문구 입력 <span style="font-weight:400;color:#94a3b8">("초기화"를 입력하세요)</span></label>
-          <input type="text" id="reset-confirm-input" placeholder="초기화" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
-        </div>
-        <div style="margin-bottom:20px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">🔐 관리자 비밀번호 재입력</label>
-          <input type="password" id="reset-pw-input" placeholder="비밀번호를 입력하세요" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
-          <div id="reset-pw-error" style="display:none;color:#ef4444;font-size:12px;margin-top:4px">비밀번호가 올바르지 않습니다</div>
-        </div>
-        <div style="display:flex;gap:10px">
-          <button onclick="document.getElementById('year-reset-modal').style.display='none'" class="btn btn-gray" style="flex:1;padding:12px">취소</button>
-          <button onclick="executeYearReset()" style="flex:1;padding:12px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">초기화 실행</button>
-        </div>
-      </div>
-    </div>
-        <!-- 활동 선택 -->
-        <div style="margin-bottom:14px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">분야 <span style="color:#ef4444">*</span></label>
-          <select id="bulk-cat" onchange="onBulkCatChange()" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-            <option value="">-- 분야 선택 --</option>
-          </select>
-        </div>
-        <div style="margin-bottom:14px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">활동 항목 <span style="color:#ef4444">*</span></label>
-          <select id="bulk-item" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none" disabled>
-            <option value="">-- 항목 선택 --</option>
-          </select>
-        </div>
-        <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;margin-bottom:14px">
-          <div>
-            <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">건수</label>
-            <input type="number" id="bulk-count" value="1" min="1" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-          </div>
-          <div>
-            <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">메모 (선택)</label>
-            <input type="text" id="bulk-memo" placeholder="활동 내용 메모" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
-          </div>
-        </div>
-        <!-- CSV 업로드 -->
-        <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 CSV 파일 <span style="color:#ef4444">*</span></label>
-          <div class="file-drop" onclick="document.getElementById('bulk-csv-input').click()">
-            <span id="bulk-csv-label">클릭하여 CSV 파일 선택</span>
-          </div>
-          <input type="file" id="bulk-csv-input" accept=".csv" style="display:none" onchange="handleBulkCSV(this)">
-        </div>
-        <!-- 미리보기 -->
-        <div id="bulk-preview" style="display:none;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:600;color:#0f2557;margin-bottom:8px">대상자 미리보기 <span id="bulk-count-label" style="color:#e8610a"></span></div>
-          <div style="max-height:140px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;font-size:12px">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="background:#f8fafc">
-                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">부서명</th>
-                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">사번</th>
-                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">이름</th>
-              </tr></thead>
-              <tbody id="bulk-preview-body"></tbody>
-            </table>
-          </div>
-        </div>
-        <button onclick="submitBulk()" class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;">📨 일괄 제출하기</button>
-      </div>
-    </div>
 
     <div id="done-screen" class="done-screen">
       <div style="font-size:56px;margin-bottom:12px">🎉</div>
@@ -2162,7 +2083,31 @@ function saveItemsToSheet() {
           <div style="font-size:17px;font-weight:800;color:#0f2557;margin-bottom:6px">연말 정산 초기화</div>
           <div style="font-size:13px;color:#64748b;line-height:1.6">새 연도를 입력하면 아래 내용이 초기화됩니다.</div>
         </div>
-
+        <div style="background:#fff0f0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#b91c1c;line-height:1.8">
+          ⚠️ Google Sheets 신청 데이터 전체 삭제<br>
+          ⚠️ 시스템 연도 변경<br>
+          ⚠️ D-day 마감일 초기화<br>
+          <span style="font-size:12px;color:#94a3b8;margin-top:4px;display:block">※ 실행 전 반드시 Excel 다운로드로 백업하세요!</span>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">새 연도 입력</label>
+          <input type="number" id="new-year-input" value="2027" min="2025" max="2099" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;text-align:center;outline:none;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">확인 문구 입력 <span style="font-weight:400;color:#94a3b8">("초기화"를 입력하세요)</span></label>
+          <input type="text" id="reset-confirm-input" placeholder="초기화" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">🔐 관리자 비밀번호 재입력</label>
+          <input type="password" id="reset-pw-input" placeholder="비밀번호를 입력하세요" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box">
+          <div id="reset-pw-error" style="display:none;color:#ef4444;font-size:12px;margin-top:4px">비밀번호가 올바르지 않습니다</div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button onclick="document.getElementById('year-reset-modal').style.display='none'" class="btn btn-gray" style="flex:1;padding:12px">취소</button>
+          <button onclick="executeYearReset()" style="flex:1;padding:12px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">초기화 실행</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 일괄 신청 모달 -->
     <div id="bulk-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
@@ -2176,7 +2121,54 @@ function saveItemsToSheet() {
           <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
           <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀,2024001,홍길동</code></div>
         </div>
-
+        <!-- 활동 선택 -->
+        <div style="margin-bottom:14px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">분야 <span style="color:#ef4444">*</span></label>
+          <select id="bulk-cat" onchange="onBulkCatChange()" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+            <option value="">-- 분야 선택 --</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">활동 항목 <span style="color:#ef4444">*</span></label>
+          <select id="bulk-item" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none" disabled>
+            <option value="">-- 항목 선택 --</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:12px;margin-bottom:14px">
+          <div>
+            <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">건수</label>
+            <input type="number" id="bulk-count" value="1" min="1" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">메모 (선택)</label>
+            <input type="text" id="bulk-memo" placeholder="활동 내용 메모" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+        </div>
+        <!-- CSV 업로드 -->
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 CSV 파일 <span style="color:#ef4444">*</span></label>
+          <div class="file-drop" onclick="document.getElementById('bulk-csv-input').click()">
+            <span id="bulk-csv-label">클릭하여 CSV 파일 선택</span>
+          </div>
+          <input type="file" id="bulk-csv-input" accept=".csv" style="display:none" onchange="handleBulkCSV(this)">
+        </div>
+        <!-- 미리보기 -->
+        <div id="bulk-preview" style="display:none;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:600;color:#0f2557;margin-bottom:8px">대상자 미리보기 <span id="bulk-count-label" style="color:#e8610a"></span></div>
+          <div style="max-height:140px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;font-size:12px">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f8fafc">
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">부서명</th>
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">사번</th>
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #e2e8f0">이름</th>
+              </tr></thead>
+              <tbody id="bulk-preview-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <button onclick="submitBulk()" class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;">📨 일괄 제출하기</button>
+      </div>
+    </div>
 
     <!-- 본인확인 모달 -->
     <div id="identity-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;">
@@ -2187,6 +2179,12 @@ function saveItemsToSheet() {
           <div style="font-size:13px;color:#64748b" id="identity-sub"></div>
           <div style="font-size:14px;font-weight:600;color:#e8610a;margin-top:10px">본인이 맞으신가요? 🙋</div>
         </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="confirmIdentityNo()" class="btn btn-gray" style="flex:1;padding:12px;">아니요, 수정</button>
+          <button onclick="confirmIdentityYes()" class="btn btn-primary" style="flex:1;padding:12px;">맞아요! ✓</button>
+        </div>
+      </div>
+    </div>
 
 </body>
 </html>
