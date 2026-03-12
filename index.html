@@ -450,9 +450,22 @@
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="exportExcel()" style="font-size:13px">📥 Excel 다운로드</button>
+          <button class="btn" onclick="checkDriveStorage()" id="storage-btn" style="font-size:13px;background:#f0f9ff;color:#0369a1;border:1.5px solid #bae0ff">☁️ 용량 확인</button>
           <button class="btn" onclick="showYearResetModal()" style="font-size:13px;background:#fff0f0;color:#ef4444;border:1.5px solid #fecaca">🔄 연말 초기화</button>
           <button class="btn btn-gray btn-sm" onclick="adminLogout()">로그아웃</button>
         </div>
+      </div>
+
+      <!-- 용량 표시 바 -->
+      <div id="storage-bar-wrap" style="display:none;background:white;border-radius:10px;padding:14px 18px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:600;color:#374151">☁️ Google Drive 용량</div>
+          <div id="storage-text" style="font-size:13px;color:#64748b"></div>
+        </div>
+        <div style="background:#f1f5f9;border-radius:99px;height:8px;overflow:hidden">
+          <div id="storage-bar" style="height:100%;border-radius:99px;background:#22c55e;transition:width 0.4s ease;width:0%"></div>
+        </div>
+        <div id="storage-warning" style="display:none;margin-top:8px;font-size:12px;color:#ef4444;font-weight:600">⚠️ 용량이 부족합니다! 연말 초기화 또는 Drive 파일 정리가 필요해요.</div>
       </div>
 
       <!-- 관리자 탭 -->
@@ -960,7 +973,15 @@ async function submitAllActivities() {
   let success=0;
   for(let i=0;i<toSubmit.length;i++){
     document.getElementById("loading-msg").textContent=`${i+1} / ${toSubmit.length}건 저장 중...`;
-    try{ const res=await apiCall(toSubmit[i]); if(res.success) success++; }catch(e){}
+    try{
+      const res=await apiCall(toSubmit[i]);
+      if(res.success) success++;
+      else if(res.error==="STORAGE_FULL"){
+        hideLoading();
+        alert("❌ Google Drive 용량이 부족합니다!\n관리자에게 문의하거나 연말 초기화 후 다시 시도해주세요.");
+        return;
+      }
+    }catch(e){}
   }
   hideLoading();
   if(success===toSubmit.length){ localStorage.removeItem(DRAFT_KEY);
@@ -1121,6 +1142,11 @@ async function submitBulk() {
         fileName:"", fileData:null
       });
       if(res.success) success++;
+      else if(res.error==="STORAGE_FULL"){
+        hideLoading();
+        alert("❌ Google Drive 용량이 부족합니다!\n관리자 페이지에서 용량을 확인해주세요.");
+        return;
+      }
     } catch(e){}
   }
   hideLoading();
@@ -1279,6 +1305,32 @@ function doLogin() {
   } else { document.getElementById("pw-error").style.display="block"; }
 }
 
+async function checkDriveStorage() {
+  const btn = document.getElementById("storage-btn");
+  btn.textContent = "확인 중...";
+  btn.disabled = true;
+  try {
+    const res = await apiCall({action: "getStorageInfo"});
+    btn.textContent = "☁️ 용량 확인";
+    btn.disabled = false;
+    if(!res.success) throw new Error(res.error||"실패");
+    const used = res.used;   // bytes
+    const total = res.total; // bytes
+    const pct = total > 0 ? Math.round(used / total * 100) : 0;
+    const toGB = b => (b / 1024 / 1024 / 1024).toFixed(2);
+    document.getElementById("storage-text").textContent = toGB(used) + "GB / " + toGB(total) + "GB (" + pct + "%)";
+    const bar = document.getElementById("storage-bar");
+    bar.style.width = pct + "%";
+    bar.style.background = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#22c55e";
+    document.getElementById("storage-warning").style.display = pct >= 85 ? "block" : "none";
+    document.getElementById("storage-bar-wrap").style.display = "block";
+  } catch(e) {
+    btn.textContent = "☁️ 용량 확인";
+    btn.disabled = false;
+    alert("용량 조회 실패: " + e.message);
+  }
+}
+
 function showYearResetModal() {
   document.getElementById("reset-confirm-input").value = "";
   document.getElementById("new-year-input").value = new Date().getFullYear() + 1;
@@ -1315,8 +1367,7 @@ async function executeYearReset() {
     localStorage.removeItem(DRAFT_KEY);
 
     hideLoading();
-    alert("✅ 초기화 완료!
-" + newYear + "년도 운영을 시작하세요.");
+    alert("✅ 초기화 완료!\n" + newYear + "년도 운영을 시작하세요.");
     renderAdminPanel();
   } catch(e) {
     hideLoading();
