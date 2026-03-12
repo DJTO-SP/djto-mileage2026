@@ -179,31 +179,12 @@
       <div class="notice" style="margin-bottom:0;flex:1">✅ 제출한 내용은 Google Sheets에 자동으로 저장되며, 관리자가 검토 후 승인/반려 처리합니다.</div>
       <button class="btn" style="background:#1c3557;color:white;white-space:nowrap;flex-shrink:0" onclick="openBulkModal()">📋 일괄 신청</button>
     </div>
-
-    <!-- 본인확인 모달 -->
-    <div id="identity-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;">
-      <div style="background:white;border-radius:20px;padding:32px 28px;max-width:340px;width:92%;box-shadow:0 12px 48px rgba(0,0,0,0.22);text-align:center;animation:popIn 0.22s ease;">
-        <img src="image17.png" alt="꿈순이" style="height:90px;object-fit:contain;mix-blend-mode:multiply;margin-bottom:4px">
-        <div style="background:#fff7f0;border:2px solid #f4a96a;border-radius:14px;padding:14px 18px;margin-bottom:20px;position:relative;">
-          <div style="font-size:16px;font-weight:800;color:#1c3557;margin-bottom:4px" id="identity-name"></div>
-          <div style="font-size:13px;color:#64748b" id="identity-sub"></div>
-          <div style="font-size:14px;font-weight:600;color:#e8610a;margin-top:10px">본인이 맞으신가요? 🙋</div>
-        </div>
         <div style="display:flex;gap:10px;">
           <button onclick="confirmIdentityNo()" class="btn btn-gray" style="flex:1;padding:12px;">아니요, 수정</button>
           <button onclick="confirmIdentityYes()" class="btn btn-primary" style="flex:1;padding:12px;">맞아요! ✓</button>
         </div>
       </div>
     </div>
-
-    <!-- 연말 초기화 모달 -->
-    <div id="year-reset-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
-      <div style="background:white;border-radius:16px;padding:28px;max-width:420px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease">
-        <div style="text-align:center;margin-bottom:20px">
-          <div style="font-size:40px;margin-bottom:8px">🔄</div>
-          <div style="font-size:17px;font-weight:800;color:#0f2557;margin-bottom:6px">연말 정산 초기화</div>
-          <div style="font-size:13px;color:#64748b;line-height:1.6">새 연도를 입력하면 아래 내용이 초기화됩니다.</div>
-        </div>
         <div style="background:#fff0f0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#b91c1c;line-height:1.8">
           ⚠️ Google Sheets 신청 데이터 전체 삭제<br>
           ⚠️ 시스템 연도 변경<br>
@@ -229,19 +210,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 일괄 신청 모달 -->
-    <div id="bulk-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
-      <div style="background:white;border-radius:16px;padding:28px;max-width:520px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease;max-height:90vh;overflow-y:auto;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <div style="font-size:17px;font-weight:800;color:#0f2557">📋 일괄 신청</div>
-          <button onclick="closeBulkModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer">✕</button>
-        </div>
-        <div style="background:#f0f6ff;border-radius:8px;padding:12px 14px;font-size:13px;color:#1e40af;margin-bottom:16px;border-left:3px solid #3b82f6">
-          <div style="font-weight:600;margin-bottom:4px">CSV 파일 형식 안내</div>
-          <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
-          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀,2024001,홍길동</code></div>
-        </div>
         <!-- 활동 선택 -->
         <div style="margin-bottom:14px">
           <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">분야 <span style="color:#ef4444">*</span></label>
@@ -619,7 +587,7 @@ const ADMIN_PW = "alsk0118**";
 const STORAGE_KEY = "cmm_2026";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw4DBReqxinCxpcLyWMm0G9p3i3IlwTfLR6pwSnW9ms1AHlfbVqZbl_7lmEh5EbkBoo/exec";
 
-const CATEGORIES = [
+let CATEGORIES = [
   { id:"knowledge", name:"지식경영", color:"#1e40af", items:[
     { id:"k1", name:"학습동아리 - 리더", unit:"동아리", points:3, limit:3, method:"일괄" },
     { id:"k2", name:"학습동아리 - 총무", unit:"동아리", points:3, limit:3, method:"일괄" },
@@ -728,6 +696,27 @@ function load() {
   initDday();
   // Sheets에서 최신 명단 자동 로드 (백그라운드)
   loadMembersFromSheet(false);
+  // Sheets에서 운영항목 로드 (백그라운드)
+  loadCategoriesFromSheet();
+}
+
+async function loadCategoriesFromSheet() {
+  try {
+    const res = await apiCall({ action: "getCategories" });
+    if(res && res.success && res.data) {
+      const parsed = JSON.parse(res.data);
+      if(Array.isArray(parsed) && parsed.length > 0) {
+        CATEGORIES.length = 0;
+        parsed.forEach(c => CATEGORIES.push(c));
+        renderCatTags();
+        // 운영항목 탭 열려있으면 새로고침
+        const itemPanel = document.getElementById("admin-items-panel");
+        if(itemPanel && itemPanel.style.display !== "none") renderItemsPanel();
+      }
+    }
+  } catch(e) {
+    // 실패 시 기본값 유지 (무시)
+  }
 }
 function saveMembers() {
   try { localStorage.setItem(STORAGE_KEY+"_members", JSON.stringify(members)); } catch {}
@@ -1383,7 +1372,7 @@ async function executeYearReset() {
 
     hideLoading();
     alert("✅ 초기화 완료!\n" + newYear + "년도 운영을 시작하세요.");
-    renderAdminPanel();
+    goPage('admin');
   } catch(e) {
     hideLoading();
     alert("초기화 실패: " + e.message);
@@ -2146,25 +2135,58 @@ function rebuildSubcategories() {
 }
 
 function saveItemsToSheet() {
-  // 현재 CATEGORIES를 JSON으로 시트에 저장
   const payload = { action: "saveCategories", data: JSON.stringify(CATEGORIES) };
-  showLoading();
+  showLoading("운영항목 저장 중...");
   apiCall(payload)
     .then(r => {
       hideLoading();
-      if(r && r.ok) {
-        alert("✅ 저장 완료! 신청 화면에 즉시 반영되었습니다.");
+      if(r && r.success) {
+        alert("✅ 저장 완료! Sheets에 반영되었습니다.\n다음 접속 시에도 변경 내용이 유지됩니다.");
       } else {
-        // 시트 저장 실패해도 로컬은 반영됨
-        alert("✅ 로컬 반영 완료!\n(시트 저장은 Apps Script에 saveCategories 액션 추가 필요)");
+        alert("❌ 저장 실패: " + (r && r.error ? r.error : "알 수 없는 오류"));
       }
     })
     .catch(() => {
       hideLoading();
-      alert("✅ 로컬 반영 완료! 이 세션 동안 신청 화면에 반영됩니다.");
+      alert("❌ 서버 연결 실패. 잠시 후 다시 시도해주세요.");
     });
 }
 // ────────────────────────────────────────────────────────
 </script>
+
+    <!-- 연말 초기화 모달 -->
+    <div id="year-reset-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:16px;padding:28px;max-width:420px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:40px;margin-bottom:8px">🔄</div>
+          <div style="font-size:17px;font-weight:800;color:#0f2557;margin-bottom:6px">연말 정산 초기화</div>
+          <div style="font-size:13px;color:#64748b;line-height:1.6">새 연도를 입력하면 아래 내용이 초기화됩니다.</div>
+        </div>
+
+
+    <!-- 일괄 신청 모달 -->
+    <div id="bulk-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:16px;padding:28px;max-width:520px;width:95%;box-shadow:0 12px 48px rgba(0,0,0,0.25);animation:popIn 0.2s ease;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div style="font-size:17px;font-weight:800;color:#0f2557">📋 일괄 신청</div>
+          <button onclick="closeBulkModal()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer">✕</button>
+        </div>
+        <div style="background:#f0f6ff;border-radius:8px;padding:12px 14px;font-size:13px;color:#1e40af;margin-bottom:16px;border-left:3px solid #3b82f6">
+          <div style="font-weight:600;margin-bottom:4px">CSV 파일 형식 안내</div>
+          <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
+          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀,2024001,홍길동</code></div>
+        </div>
+
+
+    <!-- 본인확인 모달 -->
+    <div id="identity-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:99999;align-items:center;justify-content:center;">
+      <div style="background:white;border-radius:20px;padding:32px 28px;max-width:340px;width:92%;box-shadow:0 12px 48px rgba(0,0,0,0.22);text-align:center;animation:popIn 0.22s ease;">
+        <img src="image17.png" alt="꿈순이" style="height:90px;object-fit:contain;mix-blend-mode:multiply;margin-bottom:4px">
+        <div style="background:#fff7f0;border:2px solid #f4a96a;border-radius:14px;padding:14px 18px;margin-bottom:20px;position:relative;">
+          <div style="font-size:16px;font-weight:800;color:#1c3557;margin-bottom:4px" id="identity-name"></div>
+          <div style="font-size:13px;color:#64748b" id="identity-sub"></div>
+          <div style="font-size:14px;font-weight:600;color:#e8610a;margin-top:10px">본인이 맞으신가요? 🙋</div>
+        </div>
+
 </body>
 </html>
