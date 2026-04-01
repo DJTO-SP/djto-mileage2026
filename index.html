@@ -123,6 +123,7 @@
     <button class="nav-btn active" id="nav-home" onclick="goPage('home')"><span class="nav-icon">🏠</span> 홈</button>
     <button class="nav-btn" id="nav-submit" onclick="goPage('submit')"><span class="nav-icon">📝</span> 활동 신청</button>
     <button class="nav-btn" id="nav-lookup" onclick="goPage('lookup')"><span class="nav-icon">🔍</span> 내 현황 조회</button>
+    <button class="nav-btn" id="nav-deptview" onclick="goPage('deptview')"><span class="nav-icon">🏢</span> 부서 현황</button>
     <button class="nav-btn" id="nav-admin" onclick="goPage('admin')"><span class="nav-icon">⚙️</span> 관리자</button>
   </div>
 </div>
@@ -325,6 +326,22 @@
     <div id="lookup-result"></div>
   </div>
 
+  <!-- 부서 현황 -->
+  <div id="page-deptview" class="page">
+    <h2>부서 현황 조회</h2>
+    <div class="sub">부서 조회 코드를 입력하면 해당 부서의 마일리지 현황을 확인할 수 있습니다.</div>
+    <div class="card" id="deptview-login" style="max-width:420px;margin:0 auto;text-align:center;padding:32px">
+      <div style="font-size:40px;margin-bottom:12px">🏢</div>
+      <div style="font-size:16px;font-weight:700;color:#0f2557;margin-bottom:16px">부서 조회 코드 입력</div>
+      <div class="form-group" style="text-align:left">
+        <input type="text" id="dv-code" placeholder="조회 코드를 입력하세요" onkeydown="if(event.key==='Enter')doDeptLookup()" style="text-align:center;font-size:15px">
+        <div class="error-msg" id="dv-error">유효하지 않은 코드입니다</div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="doDeptLookup()">조회</button>
+    </div>
+    <div id="deptview-result"></div>
+  </div>
+
   <!-- 관리자 -->
   <div id="page-admin" class="page">
     <div id="admin-login">
@@ -372,6 +389,7 @@
         <button class="tab active" id="atab-activities" onclick="switchAdminTab('activities')">신청 관리</button>
         <button class="tab" id="atab-members" onclick="switchAdminTab('members')">명단 관리</button>
         <button class="tab" id="atab-items" onclick="switchAdminTab('items')">📋 마일리지 운영항목</button>
+        <button class="tab" id="atab-deptcodes" onclick="switchAdminTab('deptcodes')">🏢 부서코드</button>
       </div>
 
       <!-- 신청 관리 -->
@@ -506,6 +524,29 @@
           <div id="item-cat-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
           <!-- 항목 테이블 -->
           <div id="item-table-wrap"></div>
+        </div>
+      </div>
+      <!-- 부서코드 관리 -->
+      <div id="admin-deptcodes" style="display:none">
+        <div class="card">
+          <div style="font-weight:700;color:#0f2557;margin-bottom:6px;font-size:15px">🏢 부서 조회 코드 관리</div>
+          <div style="font-size:13px;color:#64748b;margin-bottom:16px">부서별 조회 코드를 생성하여 해당 부서에 전달하세요. 코드로 부서 마일리지 현황을 조회할 수 있습니다.</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px">
+            <div style="flex:1">
+              <label>부서 선택</label>
+              <select id="dc-dept" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit">
+                <option value="">-- 부서 선택 --</option>
+                <option>사장</option><option>이사</option><option>안전감사팀</option><option>기획조정실</option>
+                <option>전략기획팀</option><option>인사노무팀</option><option>총무회계팀</option><option>관광사업단</option>
+                <option>관광사업팀</option><option>융합사업팀</option><option>홍보마케팅팀</option><option>축제행사팀</option>
+                <option>관광개발사업단</option><option>관광개발팀</option><option>시설운영팀</option><option>시민광장팀</option>
+                <option>MICE사업단</option><option>운영지원팀</option><option>센터마케팅팀</option><option>전시기획팀</option>
+                <option>MICE뷰로팀</option><option>세계태양광총회TF팀</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="createDeptCode()" style="white-space:nowrap">코드 생성</button>
+          </div>
+          <div id="dc-list"><div class="empty">불러오는 중...</div></div>
         </div>
       </div>
     </div>
@@ -1370,24 +1411,21 @@ function adminLogout() {
 
 function switchAdminTab(tab) {
   adminTab=tab;
-  document.getElementById("admin-activities").style.display=tab==="activities"?"block":"none";
-  document.getElementById("admin-members").style.display=tab==="members"?"block":"none";
-  document.getElementById("admin-items").style.display=tab==="items"?"block":"none";
-  document.getElementById("atab-activities").className="tab"+(tab==="activities"?" active":"");
-  document.getElementById("atab-members").className="tab"+(tab==="members"?" active":"");
-  document.getElementById("atab-items").className="tab"+(tab==="items"?" active":"");
+  ["activities","members","items","deptcodes"].forEach(t=>{
+    const el=document.getElementById("admin-"+t); if(el) el.style.display=tab===t?"block":"none";
+    const tb=document.getElementById("atab-"+t); if(tb) tb.className="tab"+(tab===t?" active":"");
+  });
   if(tab==="members") { renderMemberPanel(); loadMembersFromSheet(false); }
   if(tab==="items") renderItemsPanel();
+  if(tab==="deptcodes") loadDeptCodes();
 }
 
 async function renderAdminPanel(restoreKeys=[]) {
   // 탭 패널 상태 동기화
-  document.getElementById("admin-activities").style.display = adminTab==="activities" ? "block" : "none";
-  document.getElementById("admin-members").style.display    = adminTab==="members"    ? "block" : "none";
-  document.getElementById("admin-items").style.display      = adminTab==="items"      ? "block" : "none";
-  document.getElementById("atab-activities").className = "tab" + (adminTab==="activities" ? " active" : "");
-  document.getElementById("atab-members").className    = "tab" + (adminTab==="members"    ? " active" : "");
-  document.getElementById("atab-items").className      = "tab" + (adminTab==="items"      ? " active" : "");
+  ["activities","members","items","deptcodes"].forEach(t=>{
+    const el=document.getElementById("admin-"+t); if(el) el.style.display=adminTab===t?"block":"none";
+    const tb=document.getElementById("atab-"+t); if(tb) tb.className="tab"+(adminTab===t?" active":"");
+  });
   if(adminTab === "items")   { renderItemsPanel(); return; }
   if(adminTab === "members") { renderMemberPanel(); loadMembersFromSheet(false); return; }
   document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:28px;margin-bottom:8px">⏳</div><div>신청 내역을 불러오는 중...</div></div>`;
@@ -2181,6 +2219,126 @@ function saveItemsToSheet() {
       hideLoading();
       alert("❌ 서버 연결 실패. 잠시 후 다시 시도해주세요.");
     });
+}
+// ── 부서 현황 조회 ────────────────────────────────────
+async function doDeptLookup() {
+  const code = document.getElementById("dv-code").value.trim();
+  const errEl = document.getElementById("dv-error");
+  const resEl = document.getElementById("deptview-result");
+  errEl.style.display = "none";
+  if (!code) { errEl.textContent = "코드를 입력하세요"; errEl.style.display = "block"; return; }
+
+  showLoading("부서 현황 조회 중...");
+  try {
+    const vRes = await apiCall({ action: "verifyDeptCode", code });
+    if (!vRes.success) { hideLoading(); errEl.textContent = vRes.error || "유효하지 않은 코드입니다"; errEl.style.display = "block"; return; }
+
+    const dept = vRes.dept;
+    const allRes = await apiCall({ action: "getAll" });
+    hideLoading();
+    if (!allRes.success) { alert("데이터 조회 실패"); return; }
+
+    const all = allRes.data || [];
+    const deptData = all.filter(a => a["부서"] === dept);
+    const approved = deptData.filter(a => a["상태"] === "승인");
+    const pending = deptData.filter(a => a["상태"] === "대기");
+    const totalPts = approved.reduce((s, a) => s + (Number(a["마일리지"]) || 0), 0);
+    const uniqueNames = [...new Set(deptData.map(a => a["이름"]))];
+    const memberCount = uniqueNames.length;
+    const avgPts = memberCount > 0 ? Math.round(totalPts / memberCount * 10) / 10 : 0;
+
+    document.getElementById("deptview-login").style.display = "none";
+    resEl.innerHTML = `
+      <div style="margin-bottom:16px;text-align:right">
+        <button class="btn btn-gray btn-sm" onclick="deptviewBack()">← 다시 조회</button>
+      </div>
+      <div class="summary-banner">
+        <div>
+          <div style="font-size:13px;opacity:0.8">부서 현황</div>
+          <div style="font-size:24px;font-weight:800;margin-top:2px">${dept}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;opacity:0.8">부서 총 승인 마일리지</div>
+          <div style="font-size:40px;font-weight:900">${totalPts}<span style="font-size:16px;margin-left:4px">점</span></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="card" style="padding:16px;border-left:4px solid #1e40af;text-align:center">
+          <div style="font-size:12px;color:#64748b">부서원 수</div>
+          <div style="font-size:24px;font-weight:800;color:#1e40af">${memberCount}<span style="font-size:13px">명</span></div>
+        </div>
+        <div class="card" style="padding:16px;border-left:4px solid #22c55e;text-align:center">
+          <div style="font-size:12px;color:#64748b">승인 완료</div>
+          <div style="font-size:24px;font-weight:800;color:#16a34a">${approved.length}<span style="font-size:13px">건</span></div>
+        </div>
+        <div class="card" style="padding:16px;border-left:4px solid #f59e0b;text-align:center">
+          <div style="font-size:12px;color:#64748b">검토 대기</div>
+          <div style="font-size:24px;font-weight:800;color:#d97706">${pending.length}<span style="font-size:13px">건</span></div>
+        </div>
+        <div class="card" style="padding:16px;border-left:4px solid #e8610a;text-align:center">
+          <div style="font-size:12px;color:#64748b">1인 평균</div>
+          <div style="font-size:24px;font-weight:800;color:#e8610a">${avgPts}<span style="font-size:13px">점</span></div>
+        </div>
+      </div>
+      ${deptData.length === 0 ? '<div class="card empty"><div style="font-size:32px;margin-bottom:8px">📋</div><div>아직 신청 내역이 없습니다.</div></div>' : ''}
+    `;
+  } catch(e) { hideLoading(); alert("서버 연결 실패"); }
+}
+
+function deptviewBack() {
+  document.getElementById("deptview-login").style.display = "block";
+  document.getElementById("deptview-result").innerHTML = "";
+  document.getElementById("dv-code").value = "";
+  document.getElementById("dv-error").style.display = "none";
+}
+
+// ── 부서코드 관리 (관리자) ────────────────────────────
+async function loadDeptCodes() {
+  const el = document.getElementById("dc-list");
+  try {
+    const res = await apiCall({ action: "getDeptCodes", pw: window._adminPw });
+    if (!res.success) { el.innerHTML = '<div class="empty">로드 실패</div>'; return; }
+    const codes = res.codes || [];
+    if (!codes.length) { el.innerHTML = '<div class="empty"><div style="font-size:32px;margin-bottom:8px">🏢</div><div>등록된 부서코드가 없습니다.<br>위에서 부서를 선택하고 코드를 생성하세요.</div></div>'; return; }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f8fafc">' +
+      '<th style="text-align:left;padding:10px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;color:#374151">부서명</th>' +
+      '<th style="text-align:left;padding:10px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;color:#374151">조회 코드</th>' +
+      '<th style="text-align:left;padding:10px 12px;border-bottom:2px solid #e2e8f0;font-weight:600;color:#374151">생성일</th>' +
+      '<th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;width:60px"></th>' +
+      '</tr></thead><tbody>';
+    codes.forEach(c => {
+      html += '<tr style="border-bottom:1px solid #f1f5f9">' +
+        '<td style="padding:10px 12px;font-weight:600">' + c.dept + '</td>' +
+        '<td style="padding:10px 12px"><code style="background:#f0f3f9;padding:4px 10px;border-radius:6px;font-size:14px;font-weight:700;user-select:all;letter-spacing:0.5px">' + c.code + '</code></td>' +
+        '<td style="padding:10px 12px;color:#94a3b8;font-size:12px">' + (c.createdAt || '') + '</td>' +
+        '<td style="padding:10px 12px"><button onclick="deleteDeptCode(\'' + c.id + '\')" class="btn btn-danger btn-sm">삭제</button></td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div class="empty">서버 연결 실패</div>'; }
+}
+
+async function createDeptCode() {
+  const dept = document.getElementById("dc-dept").value;
+  if (!dept) { alert("부서를 선택하세요"); return; }
+  try {
+    const res = await apiCall({ action: "saveDeptCode", pw: window._adminPw, dept });
+    if (res.success) {
+      alert("✅ 부서코드가 생성되었습니다!\n\n부서: " + dept + "\n코드: " + res.code + "\n\n이 코드를 해당 부서에 전달하세요.");
+      document.getElementById("dc-dept").value = "";
+      loadDeptCodes();
+    } else { alert("생성 실패: " + (res.error || "")); }
+  } catch(e) { alert("서버 연결 실패"); }
+}
+
+async function deleteDeptCode(id) {
+  if (!confirm("이 부서코드를 삭제하시겠습니까?")) return;
+  try {
+    const res = await apiCall({ action: "deleteDeptCode", pw: window._adminPw, id });
+    if (res.success) { alert("삭제되었습니다."); loadDeptCodes(); }
+    else alert("삭제 실패: " + (res.error || ""));
+  } catch(e) { alert("서버 연결 실패"); }
 }
 // ────────────────────────────────────────────────────────
 </script>

@@ -29,6 +29,14 @@ function doPost(e) {
       result = handleSaveCategories(data);
     } else if (data.action === "getCategories") {
       result = handleGetCategories();
+    } else if (data.action === "saveDeptCode") {
+      result = data.pw === ADMIN_PW ? handleSaveDeptCode(data) : { success: false, error: "권한 없음" };
+    } else if (data.action === "getDeptCodes") {
+      result = data.pw === ADMIN_PW ? handleGetDeptCodes() : { success: false, error: "권한 없음" };
+    } else if (data.action === "deleteDeptCode") {
+      result = data.pw === ADMIN_PW ? handleDeleteDeptCode(data) : { success: false, error: "권한 없음" };
+    } else if (data.action === "verifyDeptCode") {
+      result = handleVerifyDeptCode(data);
     } else {
       result = { success: false, error: "알 수 없는 액션" };
     }
@@ -232,6 +240,75 @@ function handleGetCategories() {
     }
     const json = sheet.getRange(2, 1).getValue();
     return { success: true, data: json };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ── 부서코드 관리 ──────────────────────────────────
+function getDeptCodeSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName("부서코드");
+  if (!sheet) {
+    sheet = ss.insertSheet("부서코드");
+    sheet.appendRow(["id", "dept", "code", "createdAt"]);
+    sheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#0f2557").setFontColor("white");
+  }
+  return sheet;
+}
+
+function handleSaveDeptCode(data) {
+  try {
+    const sheet = getDeptCodeSheet();
+    const id = Utilities.getUuid().replace(/-/g, "").substring(0, 12);
+    const code = data.dept.substring(0, 2) + "-" + Utilities.getUuid().replace(/-/g, "").substring(0, 6);
+    sheet.appendRow([id, data.dept, code, new Date().toLocaleString("ko-KR")]);
+    return { success: true, id: id, code: code };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function handleGetDeptCodes() {
+  try {
+    const sheet = getDeptCodeSheet();
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return { success: true, codes: [] };
+    const codes = data.slice(1).filter(r => r[0]).map(r => ({
+      id: r[0], dept: r[1], code: r[2], createdAt: r[3]
+    }));
+    return { success: true, codes: codes };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function handleDeleteDeptCode(data) {
+  try {
+    const sheet = getDeptCodeSheet();
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === data.id) {
+        sheet.deleteRow(i + 1);
+        return { success: true };
+      }
+    }
+    return { success: false, error: "코드를 찾을 수 없습니다" };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function handleVerifyDeptCode(data) {
+  try {
+    const sheet = getDeptCodeSheet();
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][2]).trim().toLowerCase() === String(data.code).trim().toLowerCase()) {
+        return { success: true, dept: rows[i][1] };
+      }
+    }
+    return { success: false, error: "유효하지 않은 코드입니다" };
   } catch(err) {
     return { success: false, error: err.message };
   }
