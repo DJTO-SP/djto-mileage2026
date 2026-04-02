@@ -1388,8 +1388,8 @@ async function executeYearReset() {
     localStorage.removeItem(DRAFT_KEY);
 
     hideLoading();
-    alert("✅ 초기화 완료!\n" + newYear + "년도 운영을 시작하세요.");
-    goPage('admin');
+    alert("✅ 초기화 완료!\n" + newYear + "년도 운영을 시작하세요.\n\n페이지를 새로고침합니다.");
+    location.reload();
   } catch(e) {
     hideLoading();
     alert("초기화 실패: " + e.message);
