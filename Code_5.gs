@@ -203,7 +203,8 @@ function testWrite() {
 function handleClearAllData() {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getActiveSheet();
+    const sheet = ss.getSheetByName("신청내역");
+    if (!sheet) return { success: true };
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       sheet.deleteRows(2, lastRow - 1);
