@@ -90,8 +90,11 @@ function handleSubmit(data) {
   }
 
   let fileUrl = "";
-  let fileName = "";
-  if (data.fileData && data.fileName) {
+  let fileName = data.fileName || "";
+  // 일괄신청에서 공유된 파일 URL이 있으면 그대로 사용
+  if (data.sharedFileUrl) {
+    fileUrl = data.sharedFileUrl;
+  } else if (data.fileData && data.fileName) {
     // 용량 여유 확인 (50MB 미만이면 경고)
     try {
       const remaining = DriveApp.getStorageLimit() - DriveApp.getStorageUsed();
@@ -125,7 +128,7 @@ function handleSubmit(data) {
     ""
   ]);
 
-  return { success: true, id: id };
+  return { success: true, id: id, fileUrl: fileUrl };
 }
 
 function handleGetAll() {

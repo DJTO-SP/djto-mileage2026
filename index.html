@@ -1145,6 +1145,7 @@ async function submitBulk() {
     attachName = bulkAttachFile.name;
   }
   let success = 0;
+  let sharedFileUrl = "";
   for(let i=0; i<validMembers.length; i++) {
     document.getElementById("loading-msg").textContent = `${i+1} / ${validMembers.length}명 처리 중...`;
     try {
@@ -1158,9 +1159,12 @@ async function submitBulk() {
         points: item.points!==null ? item.points*cnt : null,
         count: cnt,
         memo: memo,
-        fileName: attachName, fileData: (i === 0 && attachData) ? attachData : null
+        fileName: attachName,
+        fileData: (i === 0 && attachData) ? attachData : null,
+        sharedFileUrl: (i > 0 && sharedFileUrl) ? sharedFileUrl : ""
       };
       const res = await apiCall(payload);
+      if (i === 0 && res.fileUrl) sharedFileUrl = res.fileUrl;
       if(res.success) success++;
       else if(res.error==="STORAGE_FULL"){
         hideLoading();
