@@ -1047,6 +1047,12 @@ function updateDdayDisplay(dateStr) {
 
 // ── 일괄 신청 ────────────────────────────────────────
 let bulkMembers = [];
+let bulkAttachFile = null;
+function handleBulkAttach(input) {
+  const f = input.files[0]; if(!f) return;
+  bulkAttachFile = f;
+  document.getElementById("bulk-attach-label").textContent = "📎 " + f.name + " (" + (f.size < 1024*1024 ? Math.round(f.size/1024)+"KB" : (f.size/(1024*1024)).toFixed(1)+"MB") + ")";
+}
 function openBulkModal() {
   // 분야 옵션 채우기
   const catSel = document.getElementById("bulk-cat");
@@ -1058,6 +1064,9 @@ function openBulkModal() {
     });
   }
   bulkMembers = [];
+  bulkAttachFile = null;
+  document.getElementById("bulk-attach-label").textContent = "클릭하여 증빙자료 선택 (PDF, JPG, PNG)";
+  document.getElementById("bulk-attach-input").value = "";
   document.getElementById("bulk-csv-label").textContent = "클릭하여 파일 선택 (Excel)";
   document.getElementById("bulk-preview").style.display = "none";
   document.getElementById("bulk-cat").value = "";
@@ -1129,11 +1138,17 @@ async function submitBulk() {
   if(!confirm(`${validMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.\n계속하시겠습니까?`)) return;
   closeBulkModal();
   showLoading(`0 / ${validMembers.length}명 처리 중...`);
+  // 첨부파일을 Base64로 변환 (있는 경우)
+  let attachData = null, attachName = "";
+  if (bulkAttachFile) {
+    attachData = await new Promise((res,rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsDataURL(bulkAttachFile); });
+    attachName = bulkAttachFile.name;
+  }
   let success = 0;
   for(let i=0; i<validMembers.length; i++) {
     document.getElementById("loading-msg").textContent = `${i+1} / ${validMembers.length}명 처리 중...`;
     try {
-      const res = await apiCall({
+      const payload = {
         action:"submit",
         dept: validMembers[i].dept,
         empNo: validMembers[i].empNo,
@@ -1143,8 +1158,9 @@ async function submitBulk() {
         points: item.points!==null ? item.points*cnt : null,
         count: cnt,
         memo: memo,
-        fileName:"", fileData:null
-      });
+        fileName: attachName, fileData: (i === 0 && attachData) ? attachData : null
+      };
+      const res = await apiCall(payload);
       if(res.success) success++;
       else if(res.error==="STORAGE_FULL"){
         hideLoading();
@@ -2416,6 +2432,14 @@ async function deleteDeptCode(id) {
             <span id="bulk-csv-label">클릭하거나 파일을 끌어다 놓으세요</span>
           </div>
           <input type="file" id="bulk-csv-input" accept=".xlsx,.xls" style="display:none" onchange="handleBulkCSV(this)">
+        </div>
+        <!-- 증빙 첨부파일 -->
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">증빙 첨부파일 (선택)</label>
+          <div class="file-drop" id="bulk-attach-zone" onclick="document.getElementById('bulk-attach-input').click()">
+            <span id="bulk-attach-label">클릭하여 증빙자료 선택 (PDF, JPG, PNG)</span>
+          </div>
+          <input type="file" id="bulk-attach-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleBulkAttach(this)">
         </div>
         <!-- 미리보기 -->
         <div id="bulk-preview" style="display:none;margin-bottom:16px">
