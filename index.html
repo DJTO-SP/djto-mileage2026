@@ -348,16 +348,22 @@
   <!-- 관리자 -->
   <div id="page-admin" class="page">
     <div id="admin-login">
-      <div style="max-width:400px;margin:60px auto">
-        <div class="card" style="text-align:center">
-          <div style="font-size:40px;margin-bottom:12px">🔐</div>
-          <div style="font-size:18px;font-weight:700;color:#0f2557;margin-bottom:4px">관리자 로그인</div>
-          <div style="font-size:13px;color:#64748b;margin-bottom:20px">관리자 비밀번호를 입력하세요</div>
-          <div class="form-group">
-            <input type="password" id="pw-input" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
-            <div class="error-msg" id="pw-error">비밀번호가 올바르지 않습니다</div>
+      <div style="max-width:380px;margin:60px auto">
+        <div class="card" style="text-align:center;padding:48px 28px">
+          <div style="font-size:48px;margin-bottom:16px;opacity:0.85">🔐</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+            <span style="display:inline-block;width:4px;height:17px;border-radius:2px;background:#e8610a"></span>
+            <span style="font-size:15px;font-weight:800;color:#0f2557">관리자 로그인</span>
           </div>
-          <button class="btn btn-primary btn-full" style="margin-top:0" onclick="doLogin()">로그인</button>
+          <div style="font-size:13px;color:#64748b;margin-bottom:24px">관리자 비밀번호를 입력하세요</div>
+          <div style="max-width:320px;margin:0 auto">
+            <div class="form-group" style="position:relative;margin-bottom:14px">
+              <input type="password" id="pw-input" placeholder="비밀번호" style="text-align:center;padding-right:40px" onkeydown="if(event.key==='Enter')doLogin()" onfocus="this.style.borderColor='#e8610a';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#fafbfc'">
+              <span onclick="var i=document.getElementById('pw-input');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;opacity:0.4;user-select:none">👁</span>
+              <div class="error-msg" id="pw-error">비밀번호가 올바르지 않습니다</div>
+            </div>
+            <button class="btn btn-primary btn-full" style="margin-top:0;padding:12px;font-size:14px" onclick="doLogin()">로그인</button>
+          </div>
         </div>
       </div>
     </div>
