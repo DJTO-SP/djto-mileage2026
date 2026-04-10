@@ -15,6 +15,8 @@ function doPost(e) {
       result = handleGetAll();
     } else if (data.action === "updateStatus") {
       result = handleUpdateStatus(data);
+    } else if (data.action === "bulkUpdateStatus") {
+      result = handleBulkUpdateStatus(data);
     } else if (data.action === "deleteRow") {
       result = handleDeleteRow(data);
     } else if (data.action === "getMembers") {
@@ -161,6 +163,27 @@ function handleUpdateStatus(data) {
     }
   }
   return { success: true };
+}
+
+function handleBulkUpdateStatus(data) {
+  const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("신청내역");
+  if (!sheet) return { success: false, error: "시트 없음" };
+
+  const ids = data.ids || [];
+  if (!ids.length) return { success: false, error: "ID 목록이 비어 있습니다" };
+
+  const rows = sheet.getDataRange().getValues();
+  let updated = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (ids.includes(rows[i][0])) {
+      sheet.getRange(i + 1, 9).setValue(data.status);
+      sheet.getRange(i + 1, 14).setValue(data.rejectReason || "");
+      const color = data.status === "승인" ? "#f0fdf4" : data.status === "반려" ? "#fef2f2" : "white";
+      sheet.getRange(i + 1, 1, 1, 14).setBackground(color);
+      updated++;
+    }
+  }
+  return { success: true, updated: updated };
 }
 
 function handleDeleteRow(data) {
