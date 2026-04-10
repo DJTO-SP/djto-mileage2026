@@ -362,7 +362,12 @@
               <span onclick="var i=document.getElementById('pw-input');i.type=i.type==='password'?'text':'password'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;opacity:0.4;user-select:none">👁</span>
               <div class="error-msg" id="pw-error">비밀번호가 올바르지 않습니다</div>
             </div>
-            <button class="btn btn-primary btn-full" style="margin-top:0;padding:12px;font-size:14px" onclick="doLogin()">로그인</button>
+            <button id="ml-login-btn" class="btn btn-primary btn-full" style="margin-top:0;padding:12px;font-size:14px" onclick="doLogin()">로그인</button>
+            <div id="ml-login-loading" style="display:none;text-align:center;margin-top:4px">
+              <div style="display:inline-block;width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#e8610a;border-radius:50%;animation:ml-spin .7s linear infinite;margin-bottom:4px"></div>
+              <div style="font-size:13px;font-weight:600;color:#0f2557">인증 중...</div>
+            </div>
+            <style>@keyframes ml-spin{to{transform:rotate(360deg)}}</style>
           </div>
         </div>
       </div>
@@ -1348,9 +1353,19 @@ async function doLookup() {
 }
 
 // ── 관리자 ─────────────────────────────────────────
+function mlLoginLoading(show) {
+  const btn = document.getElementById("ml-login-btn");
+  const spinner = document.getElementById("ml-login-loading");
+  const inp = document.getElementById("pw-input");
+  if (btn) btn.style.display = show ? "none" : "";
+  if (spinner) spinner.style.display = show ? "block" : "none";
+  if (inp) inp.disabled = show;
+}
 async function doLogin() {
   const pw = document.getElementById("pw-input").value;
   if (!pw) { document.getElementById("pw-error").style.display="block"; return; }
+  document.getElementById("pw-error").style.display="none";
+  mlLoginLoading(true);
   try {
     const res = await apiCall({ action: "checkAdmin", pw });
     if (res.success) {
@@ -1361,8 +1376,8 @@ async function doLogin() {
       box.title = "클릭하여 마감일 설정";
       window._adminPw = pw;
       renderAdminPanel();
-    } else { document.getElementById("pw-error").style.display="block"; }
-  } catch(e) { alert("서버 연결 실패"); }
+    } else { mlLoginLoading(false); document.getElementById("pw-error").style.display="block"; }
+  } catch(e) { mlLoginLoading(false); alert("서버 연결 실패"); }
 }
 
 async function checkDriveStorage() {
