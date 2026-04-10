@@ -404,6 +404,7 @@
         <button class="tab" id="atab-members" onclick="switchAdminTab('members')">명단 관리</button>
         <button class="tab" id="atab-items" onclick="switchAdminTab('items')">📋 마일리지 운영항목</button>
         <button class="tab" id="atab-deptcodes" onclick="switchAdminTab('deptcodes')">🏢 부서코드</button>
+        <button class="tab" id="atab-bubble" onclick="switchAdminTab('bubble')">💬 말풍선 공지</button>
       </div>
 
       <!-- 신청 관리 -->
@@ -579,6 +580,22 @@
             <button class="btn btn-primary" onclick="createDeptCode()" style="white-space:nowrap">코드 생성</button>
           </div>
           <div id="dc-list"><div class="empty">불러오는 중...</div></div>
+        </div>
+      </div>
+
+      <!-- 말풍선 공지 -->
+      <div id="admin-bubble" style="display:none">
+        <div class="card">
+          <div style="font-weight:700;color:#0f2557;margin-bottom:6px;font-size:15px">💬 배너 말풍선 공지</div>
+          <div style="font-size:13px;color:#64748b;margin-bottom:16px">배너 이미지 옆에 표시되는 짧은 공지 메시지입니다. 비워두면 말풍선이 숨겨집니다.</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
+            <input id="ml-bubble-input" placeholder="예: 수시 신청 가능" style="flex:1;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none">
+            <button class="btn btn-primary" onclick="saveMlBubble()">저장</button>
+          </div>
+          <div id="ml-bubble-preview" style="display:none;background:#f8fafc;border-radius:10px;padding:16px;text-align:center">
+            <div style="font-size:12px;color:#64748b;margin-bottom:10px">미리보기</div>
+            <span style="background:#fff;color:#204473;font-size:14px;font-weight:800;padding:9px 18px;border-radius:20px;border:2.5px solid #204473;display:inline-block">📢 <span id="ml-bubble-text"></span></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1473,13 +1490,14 @@ function adminLogout() {
 
 function switchAdminTab(tab) {
   adminTab=tab;
-  ["activities","members","items","deptcodes"].forEach(t=>{
+  ["activities","members","items","deptcodes","bubble"].forEach(t=>{
     const el=document.getElementById("admin-"+t); if(el) el.style.display=tab===t?"block":"none";
     const tb=document.getElementById("atab-"+t); if(tb) tb.className="tab"+(tab===t?" active":"");
   });
   if(tab==="members") { renderMemberPanel(); loadMembersFromSheet(false); }
   if(tab==="items") renderItemsPanel();
   if(tab==="deptcodes") loadDeptCodes();
+  if(tab==="bubble") loadMlBubble();
 }
 
 async function renderAdminPanel(restoreKeys=[]) {
@@ -2470,6 +2488,67 @@ async function deleteDeptCode(id) {
     else alert("삭제 실패: " + (res.error || ""));
   } catch(e) { alert("서버 연결 실패"); }
 }
+// ── 말풍선 공지 ──────────────────────────────────
+async function loadMlBubble() {
+  try {
+    const res = await fetch(SCRIPT_URL + "?action=getBubbleNotice");
+    const data = await res.json();
+    if (data && data.success) {
+      const inp = document.getElementById("ml-bubble-input");
+      if (inp) inp.value = data.notice || "";
+      updateMlBubblePreview(data.notice || "");
+    }
+  } catch(e) {}
+}
+function updateMlBubblePreview(text) {
+  const preview = document.getElementById("ml-bubble-preview");
+  const pText = document.getElementById("ml-bubble-text");
+  if (!preview || !pText) return;
+  if (text) { pText.textContent = text; preview.style.display = "block"; }
+  else { preview.style.display = "none"; }
+}
+async function saveMlBubble() {
+  const notice = (document.getElementById("ml-bubble-input").value || "").trim();
+  try {
+    const res = await apiCall({ action: "saveBubbleNotice", pw: window._adminPw, notice: notice });
+    if (res && res.success) {
+      alert("✅ 말풍선 공지가 " + (notice ? "저장" : "삭제") + "되었습니다.");
+      updateMlBubblePreview(notice);
+      renderMlBubble(notice);
+    } else { alert("❌ 저장 실패: " + (res.error || "")); }
+  } catch(e) { alert("❌ 서버 오류"); }
+}
+async function loadAndShowMlBubble() {
+  try {
+    const res = await fetch(SCRIPT_URL + "?action=getBubbleNotice");
+    const data = await res.json();
+    if (data && data.success && data.notice) renderMlBubble(data.notice);
+  } catch(e) {}
+}
+function renderMlBubble(text) {
+  var existing = document.querySelector(".site-notice-bubble");
+  if (existing) existing.remove();
+  if (!text) return;
+  var titleBar = document.querySelector(".title-bar");
+  if (!titleBar) return;
+  var inner = titleBar.querySelector("[style*='justify-content']") || titleBar;
+  var img = inner.querySelector("img");
+  if (!img) return;
+  var wrap = img.parentElement;
+  if (!wrap.classList.contains("pn-img-wrap")) {
+    wrap = document.createElement("div");
+    wrap.className = "pn-img-wrap";
+    wrap.style.cssText = "position:relative;display:inline-block";
+    img.parentElement.insertBefore(wrap, img);
+    wrap.appendChild(img);
+  }
+  var bubble = document.createElement("div");
+  bubble.className = "site-notice-bubble";
+  bubble.style.cssText = "position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);z-index:10";
+  bubble.innerHTML = '<div style="position:relative;background:#fff;color:#204473;font-size:14px;font-weight:800;padding:9px 18px;border-radius:20px;border:2.5px solid #204473;white-space:nowrap">📢 ' + text + '<span style="position:absolute;right:-18px;top:50%;margin-top:-7px;border:8px solid transparent;border-left:10px solid #204473"></span><span style="position:absolute;right:-14px;top:50%;margin-top:-6px;border:7px solid transparent;border-left:9px solid #fff"></span></div>';
+  wrap.appendChild(bubble);
+}
+document.addEventListener("DOMContentLoaded", function() { setTimeout(loadAndShowMlBubble, 500); });
 // ────────────────────────────────────────────────────────
 </script>
 

@@ -17,6 +17,8 @@ function doPost(e) {
       result = handleUpdateStatus(data);
     } else if (data.action === "bulkUpdateStatus") {
       result = handleBulkUpdateStatus(data);
+    } else if (data.action === "saveBubbleNotice") {
+      result = data.pw === ADMIN_PW ? handleSaveBubbleNotice(data) : { success: false, error: "권한 없음" };
     } else if (data.action === "deleteRow") {
       result = handleDeleteRow(data);
     } else if (data.action === "getMembers") {
@@ -55,6 +57,10 @@ function doPost(e) {
 
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+  if (action === "getBubbleNotice") {
+    return ContentService.createTextOutput(JSON.stringify(handleGetBubbleNotice()))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   if (action === "getAll") {
     return ContentService.createTextOutput(JSON.stringify(handleGetAll()))
       .setMimeType(ContentService.MimeType.JSON);
@@ -184,6 +190,28 @@ function handleBulkUpdateStatus(data) {
     }
   }
   return { success: true, updated: updated };
+}
+
+// ── 말풍선 공지 ──
+function handleGetBubbleNotice() {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const s = ss.getSheetByName("말풍선공지");
+    if (!s || s.getLastRow() < 2) return { success: true, notice: "" };
+    return { success: true, notice: String(s.getRange(2, 1).getValue() || "") };
+  } catch(e) { return { success: true, notice: "" }; }
+}
+
+function handleSaveBubbleNotice(data) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let s = ss.getSheetByName("말풍선공지");
+  if (!s) {
+    s = ss.insertSheet("말풍선공지");
+    s.getRange(1, 1).setValue("내용");
+    s.getRange(1, 1).setFontWeight("bold").setBackground("#e8edf5");
+  }
+  s.getRange(2, 1).setValue(data.notice || "");
+  return { success: true };
 }
 
 function handleDeleteRow(data) {
