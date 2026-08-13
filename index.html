@@ -705,9 +705,27 @@ function hideLoading() {
   const el = document.getElementById("loading-overlay");
   if(el) el.style.display = "none";
 }
+// 재시도해도 안전한(멱등) 액션만 자동 재시도한다.
+// submit / saveDeptCode / deleteRow 등은 중복 생성·삭제 위험이 있어 제외.
+const RETRYABLE_ACTIONS = ["getAll","getMembers","getCategories","getStorageInfo",
+  "getDeptCodes","checkAdmin","verifyDeptCode","updateStatus","bulkUpdateStatus"];
+
 async function apiCall(data) {
-  const res = await fetch(SCRIPT_URL, { method:"POST", body:JSON.stringify(data) });
-  return await res.json();
+  const max = RETRYABLE_ACTIONS.indexOf(data.action) > -1 ? 3 : 1;
+  let lastErr;
+  for(let i = 1; i <= max; i++){
+    try{
+      const res = await fetch(SCRIPT_URL, { method:"POST", body:JSON.stringify(data) });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const txt = await res.text();
+      try { return JSON.parse(txt); }
+      catch(e){ throw new Error("서버가 JSON이 아닌 응답을 보냈습니다"); }
+    }catch(e){
+      lastErr = e;
+      if(i < max) await new Promise(r=>setTimeout(r, 800 * i));   // 0.8초 → 1.6초
+    }
+  }
+  throw lastErr;
 }
 
 // ── 초기화 ─────────────────────────────────────────
@@ -1511,9 +1529,9 @@ async function renderAdminPanel(restoreKeys=[]) {
   document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:28px;margin-bottom:8px">⏳</div><div>신청 내역을 불러오는 중...</div></div>`;
   try {
     const res=await apiCall({action:"getAll"});
-    if(!res.success){ document.getElementById("admin-list").innerHTML=`<div class="card empty"><div>조회 실패: ${res.error||""}</div></div>`; return; }
+    if(!res.success){ document.getElementById("admin-list").innerHTML=`<div class="card empty"><div>조회 실패: ${res.error||""}</div>${retryBtnHTML()}</div>`; return; }
     activities=res.data||[];
-  } catch(e){ document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:28px;margin-bottom:8px">❌</div><div>서버 연결 실패. 잠시 후 다시 시도해주세요.</div></div>`; return; }
+  } catch(e){ document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:28px;margin-bottom:8px">❌</div><div>서버 연결 실패 (3회 재시도함)</div><div style="font-size:12px;color:#cbd5e1;margin-top:6px">${(e&&e.message)||""}</div>${retryBtnHTML()}</div>`; return; }
 
   const counts={pending:activities.filter(a=>a["상태"]==="대기").length, approved:activities.filter(a=>a["상태"]==="승인").length, rejected:activities.filter(a=>a["상태"]==="반려").length, all:activities.length};
   document.getElementById("admin-tabs").innerHTML=[{id:"pending",label:"검토 대기"},{id:"approved",label:"승인"},{id:"rejected",label:"반려"},{id:"all",label:"전체"}].map(t=>
@@ -1533,6 +1551,10 @@ async function renderAdminPanel(restoreKeys=[]) {
       });
     }, 50);
   }
+}
+
+function retryBtnHTML(){
+  return `<button onclick="renderAdminPanel()" style="margin-top:14px;background:#1c3557;color:white;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🔄 다시 시도</button>`;
 }
 
 function setFilter(f){ adminFilter=f; renderAdminPanel(); }
