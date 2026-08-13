@@ -1,6 +1,6 @@
 const SHEET_ID = "1lTpW--FU6z3_4lTZkEUs9IF5Y8zOkLfLphcacPnax8A";
 const FOLDER_ID = "16s8rh0qPPDcGctOzgURWi9DHnoACzUgS";
-const ADMIN_PW = "alsk0118**";
+const ADMIN_PW = PropertiesService.getScriptProperties().getProperty('ADMIN_PW');
 
 function doPost(e) {
   try {
@@ -146,11 +146,13 @@ function handleGetAll() {
   }
   const rows = sheet.getDataRange().getValues();
   const headers = rows[0];
-  const data = rows.slice(1).map(row => {
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = row[i]);
-    return obj;
-  });
+  const data = rows.slice(1)
+    .filter(row => row.some(c => String(c).trim() !== ""))
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i]);
+      return obj;
+    });
   return { success: true, data: data };
 }
 
