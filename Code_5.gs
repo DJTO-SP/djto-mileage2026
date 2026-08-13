@@ -180,16 +180,39 @@ function handleBulkUpdateStatus(data) {
   const ids = data.ids || [];
   if (!ids.length) return { success: false, error: "ID 목록이 비어 있습니다" };
 
-  const rows = sheet.getDataRange().getValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, updated: 0 };
+
+  // ID 조회용 맵 (문자열 비교로 통일)
+  const idSet = {};
+  ids.forEach(function(v){ idSet[String(v).trim()] = true; });
+
+  // 건별 setValue 대신 열 단위로 한 번에 읽고 한 번에 쓴다.
+  // (건당 3회 호출 → 총 6회. 수백 건 일괄 처리 시 실행시간 초과 방지)
+  const n = lastRow - 1;
+  const idCol     = sheet.getRange(2, 1,  n, 1).getValues();
+  const statusCol = sheet.getRange(2, 9,  n, 1).getValues();
+  const reasonCol = sheet.getRange(2, 14, n, 1).getValues();
+  const bgs       = sheet.getRange(2, 1,  n, 14).getBackgrounds();
+
+  const status = data.status;
+  const reason = data.rejectReason || "";
+  const color = status === "승인" ? "#f0fdf4" : status === "반려" ? "#fef2f2" : "#ffffff";
+
   let updated = 0;
-  for (let i = 1; i < rows.length; i++) {
-    if (ids.includes(rows[i][0])) {
-      sheet.getRange(i + 1, 9).setValue(data.status);
-      sheet.getRange(i + 1, 14).setValue(data.rejectReason || "");
-      const color = data.status === "승인" ? "#f0fdf4" : data.status === "반려" ? "#fef2f2" : "white";
-      sheet.getRange(i + 1, 1, 1, 14).setBackground(color);
-      updated++;
-    }
+  for (let i = 0; i < n; i++) {
+    if (!idSet[String(idCol[i][0]).trim()]) continue;
+    statusCol[i][0] = status;
+    reasonCol[i][0] = reason;
+    for (let c = 0; c < 14; c++) bgs[i][c] = color;
+    updated++;
+  }
+
+  if (updated) {
+    sheet.getRange(2, 9,  n, 1).setValues(statusCol);
+    sheet.getRange(2, 14, n, 1).setValues(reasonCol);
+    sheet.getRange(2, 1,  n, 14).setBackgrounds(bgs);
+    SpreadsheetApp.flush();
   }
   return { success: true, updated: updated };
 }

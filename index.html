@@ -1622,6 +1622,12 @@ function applyFilters() {
     bar.style.display = "none";
   }
 
+  // 목록을 다시 그리면 체크박스가 사라지므로 일괄 액션 바도 반드시 함께 리셋한다.
+  // (아래 빈 목록 분기에서 return 하기 전에 처리해야 "N건 선택" 바가 남지 않는다)
+  document.getElementById("bulk-sel-count").textContent = "0";
+  document.getElementById("bulk-action-bar").classList.remove("show");
+  hideBulkReject();
+
   if(!base.length){
     document.getElementById("admin-list").innerHTML=`<div class="card empty"><div style="font-size:32px;margin-bottom:8px">🔍</div><div>조건에 맞는 신청이 없습니다</div></div>`;
     return;
@@ -1721,10 +1727,6 @@ function applyFilters() {
       </div>
     </div>`;
   }).join("");
-
-  // 일괄 액션 바 리셋
-  document.getElementById("bulk-action-bar").classList.remove("show");
-  hideBulkReject();
 }
 
 
@@ -1931,13 +1933,15 @@ function bulkDeselectAll(){
 }
 async function bulkApprove(){
   const ids = getCheckedIds();
-  if(!ids.length) return;
+  if(!ids.length){ alert("선택된 건이 없습니다.\n목록이 새로고침되면 체크가 풀리니 다시 선택해주세요."); onBulkCheck(); return; }
   if(!confirm(`선택한 ${ids.length}건을 일괄 승인하시겠습니까?`)) return;
   const openKeys = getOpenPersonKeys();
   showLoading(`${ids.length}건 일괄 승인 처리 중...`);
   try{
-    await apiCall({action:"bulkUpdateStatus",ids,status:"승인",rejectReason:""});
+    const res = await apiCall({action:"bulkUpdateStatus",ids,status:"승인",rejectReason:""});
     hideLoading();
+    if(!res || res.success===false){ alert("일괄 승인 실패: " + ((res&&res.error)||"서버 오류")); return; }
+    if(res.updated===0){ alert("일괄 승인 실패: 선택한 건을 시트에서 찾지 못했습니다.\n목록을 새로고침한 뒤 다시 시도해주세요."); }
     await renderAdminPanel(openKeys);
   }catch(e){ hideLoading(); alert("일괄 승인 실패: " + e.message); }
 }
@@ -1950,14 +1954,16 @@ function hideBulkReject(){
 }
 async function bulkRejectConfirm(){
   const ids = getCheckedIds();
-  if(!ids.length) return;
+  if(!ids.length){ alert("선택된 건이 없습니다.\n목록이 새로고침되면 체크가 풀리니 다시 선택해주세요."); onBulkCheck(); return; }
   const reason = document.getElementById("bulk-reject-reason").value.trim();
   if(!confirm(`선택한 ${ids.length}건을 일괄 반려하시겠습니까?`)) return;
   const openKeys = getOpenPersonKeys();
   showLoading(`${ids.length}건 일괄 반려 처리 중...`);
   try{
-    await apiCall({action:"bulkUpdateStatus",ids,status:"반려",rejectReason:reason});
+    const res = await apiCall({action:"bulkUpdateStatus",ids,status:"반려",rejectReason:reason});
     hideLoading();
+    if(!res || res.success===false){ alert("일괄 반려 실패: " + ((res&&res.error)||"서버 오류")); return; }
+    if(res.updated===0){ alert("일괄 반려 실패: 선택한 건을 시트에서 찾지 못했습니다.\n목록을 새로고침한 뒤 다시 시도해주세요."); }
     hideBulkReject();
     await renderAdminPanel(openKeys);
   }catch(e){ hideLoading(); alert("일괄 반려 실패: " + e.message); }
