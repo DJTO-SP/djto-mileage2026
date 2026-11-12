@@ -1216,7 +1216,18 @@ async function submitBulk() {
     }
   }
 
-  if(!confirm(`${validMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.\n계속하시겠습니까?`)) return;
+  // 부서는 업로드 엑셀 값 대신 등록 명단의 부서로 저장 (예: "시민광장팀(둔산주차장)" → "시민광장팀")
+  let deptFixed = [];
+  validMembers = validMembers.map(bm => {
+    const dept = currentDept(bm.empNo, bm.name, bm.dept);
+    if(dept !== bm.dept) deptFixed.push(`${bm.name}(${bm.dept} → ${dept})`);
+    return { ...bm, dept };
+  });
+  const deptMsg = deptFixed.length
+    ? `\n\nℹ️ 부서가 명단과 달라 명단 기준으로 저장되는 인원 ${deptFixed.length}명:\n${deptFixed.slice(0,10).join(", ")}${deptFixed.length>10?` 외 ${deptFixed.length-10}명`:""}`
+    : "";
+
+  if(!confirm(`${validMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.${deptMsg}\n\n계속하시겠습니까?`)) return;
   closeBulkModal();
   showLoading(`0 / ${validMembers.length}명 처리 중...`);
   // 첨부파일을 Base64로 변환 (있는 경우)
