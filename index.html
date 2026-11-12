@@ -231,6 +231,7 @@
             <option>센터마케팅팀</option>
             <option>전시기획팀</option>
             <option>MICE뷰로팀</option>
+            <option>세계태양광총회TF</option>
                       </select>
           <div class="error-msg" id="err-dept">부서명을 선택해주세요</div>
         </div>
@@ -313,6 +314,7 @@
             <option>센터마케팅팀</option>
             <option>전시기획팀</option>
             <option>MICE뷰로팀</option>
+            <option>세계태양광총회TF</option>
                       </select>
         </div>
         <div>
@@ -575,7 +577,8 @@
                 <option>관광사업팀</option><option>융합사업팀</option><option>홍보마케팅팀</option><option>축제행사팀</option>
                 <option>관광개발사업단</option><option>관광개발팀</option><option>시설운영팀</option><option>시민광장팀</option>
                 <option>MICE사업단</option><option>운영지원팀</option><option>센터마케팅팀</option><option>전시기획팀</option>
-                <option>MICE뷰로팀</option>              </select>
+                <option>MICE뷰로팀</option><option>세계태양광총회TF</option>
+              </select>
             </div>
             <button class="btn btn-primary" onclick="createDeptCode()" style="white-space:nowrap">코드 생성</button>
           </div>
@@ -677,7 +680,15 @@ let CATEGORIES = [
   ]},
 ];
 
-const DEPTS = ["사장","이사","안전감사팀","기획조정실","전략기획팀","인사노무팀","총무회계팀","관광사업단","관광사업팀","융합사업팀","홍보마케팅팀","축제행사팀","관광개발사업단","관광개발팀","시설운영팀","시민광장팀","MICE사업단","운영지원팀","센터마케팅팀","전시기획팀","MICE뷰로팀"];
+const DEPTS = ["사장","이사","안전감사팀","기획조정실","전략기획팀","인사노무팀","총무회계팀","관광사업단","관광사업팀","융합사업팀","홍보마케팅팀","축제행사팀","관광개발사업단","관광개발팀","시설운영팀","시민광장팀","MICE사업단","운영지원팀","센터마케팅팀","전시기획팀","MICE뷰로팀","세계태양광총회TF"];
+
+// 같은 사람 판별 키: 사번+이름 (부서를 옮겨도 예전 실적이 한 사람으로 합쳐지도록)
+function personKey(a){ return String(a["사번"]||"").trim()+"__"+String(a["이름"]||"").trim(); }
+// 표시용 부서: 현재 명단의 부서 우선, 명단에 없으면 신청 당시 부서
+function currentDept(empNo, name, fallback){
+  const m = members.find(x=>String(x.empNo).trim()===String(empNo||"").trim() && String(x.name).trim()===String(name||"").trim());
+  return m ? m.dept : (fallback||"");
+}
 
 let activities = [];
 let members = [];
@@ -1352,7 +1363,7 @@ async function doLookup() {
     hideLoading();
     if(!res.success){ alert("조회 실패: "+(res.error||"")); return; }
     const all=res.data||[];
-    const found=all.filter(a=>a["부서"]===dept&&String(a["사번"])===empno&&a["이름"]===name);
+    const found=all.filter(a=>String(a["사번"]).trim()===empno&&String(a["이름"]).trim()===name); // 부서 이동자도 예전 실적 포함
     const statusMap={승인:{label:"승인",color:"#16a34a",bg:"#f0fdf4"},대기:{label:"검토 대기",color:"#d97706",bg:"#fffbeb"},반려:{label:"반려",color:"#ef4444",bg:"#fef2f2"}};
     if(!found.length){ el.innerHTML=`<div class="card empty"><div style="font-size:36px;margin-bottom:8px">🔍</div><div style="font-weight:600;color:#64748b">신청 내역이 없습니다</div><div style="font-size:13px;margin-top:4px">입력 정보를 다시 확인해주세요.</div></div>`; return; }
     const approved=found.filter(a=>a["상태"]==="승인");
@@ -1658,8 +1669,8 @@ function applyFilters() {
   // 사람 단위로 그룹핑
   const grouped = {};
   base.forEach(a=>{
-    const key = `${a["부서"]}__${a["사번"]}__${a["이름"]}`;
-    if(!grouped[key]) grouped[key]={dept:a["부서"],empNo:a["사번"],name:a["이름"],items:[]};
+    const key = personKey(a);
+    if(!grouped[key]) grouped[key]={dept:currentDept(a["사번"],a["이름"],a["부서"]),empNo:a["사번"],name:a["이름"],items:[]};
     grouped[key].items.push(a);
   });
 
@@ -1845,11 +1856,8 @@ async function deleteBulkFiltered() {
 async function deletePersonAll(key, name, event) {
   if(event) event.stopPropagation();
   const parts = key.split("__");
-  // key는 "부서__사번__이름" 형식
-  const personItems = activities.filter(a => {
-    const k = `${a["부서"]}__${a["사번"]}__${a["이름"]}`;
-    return k === key;
-  });
+  // key는 personKey() 형식 ("사번__이름")
+  const personItems = activities.filter(a => personKey(a) === key);
   if(!personItems.length) return alert("삭제할 내역이 없습니다.");
   if(!confirm(`${name} 님의 신청 내역 ${personItems.length}건을 모두 삭제할까요?
 Google Sheets에서도 영구 삭제됩니다.`)) return;
@@ -2042,8 +2050,8 @@ function exportExcel(){
   // 사람별 집계
   const personMap={};
   approved.forEach(a=>{
-    const key=(a["부서"]||"")+"__"+(a["사번"]||"")+"__"+(a["이름"]||"");
-    if(!personMap[key]) personMap[key]={name:a["이름"]||"",dept:a["부서"]||"",empno:a["사번"]||"",scores:{}};
+    const key=personKey(a);
+    if(!personMap[key]) personMap[key]={name:a["이름"]||"",dept:currentDept(a["사번"],a["이름"],a["부서"]),empno:a["사번"]||"",scores:{}};
     const nm=(a["활동항목"]||"").trim();
     personMap[key].scores[nm]=(personMap[key].scores[nm]||0)+(parseFloat(a["마일리지"])||0);
   });
