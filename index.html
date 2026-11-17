@@ -655,8 +655,8 @@ let CATEGORIES = [
   ]},
   { id:"communication", name:"소통참여", color:"#b45309", items:[
     { id:"s1", name:"봉사활동 - 자원봉사대 회원", unit:"봉사대", points:4, limit:4, method:"일괄" },
-    { id:"s2", name:"봉사활동 - 근무시간 내", unit:"건", points:3, limit:6, method:"개별", needsFile:true },
-    { id:"s3", name:"봉사활동 - 근무시간 외", unit:"건", points:2, limit:4, method:"개별", needsFile:true },
+    { id:"s2", name:"봉사활동 - 근무시간 내", unit:"건", points:2, limit:4, method:"개별", needsFile:true },
+    { id:"s3", name:"봉사활동 - 근무시간 외", unit:"건", points:3, limit:6, method:"개별", needsFile:true },
     { id:"s4", name:"헌혈", unit:"건", points:1, limit:2, method:"개별", needsFile:true },
     { id:"s5", name:"취미동아리 참여", unit:"동아리", points:1, limit:2, method:"일괄" },
     { id:"s6", name:"사내강사 - 공사 사업 지원 활동", unit:"회", points:2, limit:4, method:"일괄" },
@@ -684,6 +684,30 @@ const DEPTS = ["사장","이사","안전감사팀","기획조정실","전략기�
 
 // 같은 사람 판별 키: 사번+이름 (부서를 옮겨도 예전 실적이 한 사람으로 합쳐지도록)
 function personKey(a){ return String(a["사번"]||"").trim()+"__"+String(a["이름"]||"").trim(); }
+// 항목별 한도(점수) 적용 합계: 사람×활동항목별로 합산한 뒤 한도를 넘으면 한도까지만 인정
+function itemLimitOf(name){
+  const nm=String(name||"").trim();
+  for(const c of CATEGORIES){ const it=c.items.find(i=>i.name===nm); if(it) return it.limit||null; }
+  return null;
+}
+function cappedScores(list){ // → {personKey: {항목명: 인정점수}}
+  const raw={};
+  list.forEach(a=>{
+    const k=personKey(a), nm=String(a["활동항목"]||"").trim();
+    raw[k]=raw[k]||{};
+    raw[k][nm]=(raw[k][nm]||0)+(parseFloat(a["마일리지"])||0);
+  });
+  Object.values(raw).forEach(sc=>Object.keys(sc).forEach(nm=>{
+    const lim=itemLimitOf(nm);
+    if(lim && sc[nm]>lim) sc[nm]=lim;
+  }));
+  return raw;
+}
+function cappedSum(list){
+  let t=0;
+  Object.values(cappedScores(list)).forEach(sc=>Object.values(sc).forEach(v=>t+=v));
+  return t;
+}
 // 표시용 부서: 현재 명단의 부서 우선, 명단에 없으면 신청 당시 부서
 function currentDept(empNo, name, fallback){
   const m = members.find(x=>String(x.empNo).trim()===String(empNo||"").trim() && String(x.name).trim()===String(name||"").trim());
@@ -1379,11 +1403,13 @@ async function doLookup() {
     if(!found.length){ el.innerHTML=`<div class="card empty"><div style="font-size:36px;margin-bottom:8px">🔍</div><div style="font-weight:600;color:#64748b">신청 내역이 없습니다</div><div style="font-size:13px;margin-top:4px">입력 정보를 다시 확인해주세요.</div></div>`; return; }
     const approved=found.filter(a=>a["상태"]==="승인");
     const pending=found.filter(a=>a["상태"]==="대기");
-    const total=approved.reduce((s,a)=>s+(Number(a["마일리지"])||0),0);
+    const rawTotal=approved.reduce((s,a)=>s+(Number(a["마일리지"])||0),0);
+    const total=cappedSum(approved);
+    const capNote=rawTotal>total?`<div style="font-size:11px;opacity:0.85;margin-top:2px">항목별 한도 적용 (신청 합계 ${rawTotal}점)</div>`:'';
     el.innerHTML=`
       <div class="summary-banner">
         <div><div style="font-size:13px;opacity:0.8">${dept} · ${empno}</div><div style="font-size:20px;font-weight:700;margin-top:2px">${name} 님</div></div>
-        <div style="text-align:right"><div style="font-size:12px;opacity:0.8">총 승인 마일리지</div><div style="font-size:36px;font-weight:800">${total}<span style="font-size:16px;margin-left:4px">점</span></div></div>
+        <div style="text-align:right"><div style="font-size:12px;opacity:0.8">총 승인 마일리지</div><div style="font-size:36px;font-weight:800">${total}<span style="font-size:16px;margin-left:4px">점</span></div>${capNote}</div>
       </div>
       <div class="grid2">
         <div class="card" style="padding:16px;border-left:4px solid #22c55e"><div style="font-size:12px;color:#64748b">승인 완료</div><div style="font-size:22px;font-weight:700;color:#16a34a">${approved.length}건</div></div>
@@ -2060,11 +2086,10 @@ function exportExcel(){
 
   // 사람별 집계
   const personMap={};
+  const capped=cappedScores(approved); // 항목별 한도 적용
   approved.forEach(a=>{
     const key=personKey(a);
-    if(!personMap[key]) personMap[key]={name:a["이름"]||"",dept:currentDept(a["사번"],a["이름"],a["부서"]),empno:a["사번"]||"",scores:{}};
-    const nm=(a["활동항목"]||"").trim();
-    personMap[key].scores[nm]=(personMap[key].scores[nm]||0)+(parseFloat(a["마일리지"])||0);
+    if(!personMap[key]) personMap[key]={name:a["이름"]||"",dept:currentDept(a["사번"],a["이름"],a["부서"]),empno:a["사번"]||"",scores:capped[key]};
   });
   const persons=Object.values(personMap);
   persons.forEach(p=>{p.total=Object.values(p.scores).reduce((s,v)=>s+v,0);});
@@ -2437,7 +2462,7 @@ async function doDeptLookup() {
     const deptData = all.filter(a => a["부서"] === dept);
     const approved = deptData.filter(a => a["상태"] === "승인");
     const pending = deptData.filter(a => a["상태"] === "대기");
-    const totalPts = approved.reduce((s, a) => s + (Number(a["마일리지"]) || 0), 0);
+    const totalPts = cappedSum(approved);
     const uniqueNames = [...new Set(deptData.map(a => a["이름"]))];
     const memberCount = uniqueNames.length;
     const avgPts = memberCount > 0 ? Math.round(totalPts / memberCount * 10) / 10 : 0;
