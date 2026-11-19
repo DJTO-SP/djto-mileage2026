@@ -1198,16 +1198,50 @@ function onBulkCatChange() {
   });
   itemSel.disabled = false;
 }
+// 사번이 없는 일괄 신청 대상자: 등록 명단에서 이름(+부서)으로 사번을 찾아 채운다.
+// 이름이 유일하면 부서가 달라도 채우고, 동명이인은 부서로 좁히며, 그래도 1명으로 안 정해지면 ambiguous.
+function resolveBulkMember(bm) {
+  if(bm.empNo || !bm.name) return bm;
+  const norm = s => String(s||"").replace(/\(.*?\)/g,"").replace(/\s+/g,"").trim();
+  let cands = members.filter(m => String(m.name).trim() === bm.name);
+  if(cands.length > 1) cands = cands.filter(m => norm(m.dept) === norm(bm.dept));
+  if(cands.length === 1) return { ...bm, empNo: String(cands[0].empNo).trim() };
+  if(cands.length > 1) return { ...bm, ambiguous: true };
+  return bm; // 명단에 없음
+}
 function handleBulkCSV(input) {
   const f = input.files[0]; if(!f) return;
   const reader = new FileReader();
   reader.onload = e => {
     const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
     const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
-    const start = (data[0]&&(String(data[0][0]).includes("부서")||String(data[0][1]).includes("사번"))) ? 1 : 0;
-    bulkMembers = data.slice(start).map(r=>({dept:String(r[0]||"").trim(), empNo:String(r[1]||"").trim(), name:String(r[2]||"").trim()})).filter(m=>m.dept&&m.empNo&&m.name);
+    // 열 구성: 부서·사번·이름(3열) 또는 부서·이름(2열, 사번 생략). 머리글이 있으면 머리글 기준.
+    const hdr = data[0]||[];
+    const hasHdr = hdr.some(c=>/부서|사번|이름|성명/.test(String(c||"")));
+    let ci = {dept:0, empNo:-1, name:1};
+    if(hasHdr){
+      hdr.forEach((c,i)=>{
+        const s=String(c||"");
+        if(s.includes("부서")) ci.dept=i;
+        else if(s.includes("사번")) ci.empNo=i;
+        else if(/이름|성명/.test(s)) ci.name=i;
+      });
+      if(ci.empNo>=0 && !hdr.some(c=>/이름|성명/.test(String(c||"")))) ci.name=2;
+    } else if(data[0] && String(data[0][2]||"").trim()!==""){
+      ci = {dept:0, empNo:1, name:2};
+    }
+    const start = hasHdr ? 1 : 0;
+    bulkMembers = data.slice(start).map(r=>resolveBulkMember({
+      dept:String(r[ci.dept]||"").trim(),
+      empNo:ci.empNo>=0 ? String(r[ci.empNo]||"").trim() : "",
+      name:String(r[ci.name]||"").trim()
+    })).filter(m=>m.dept&&m.name);
     document.getElementById("bulk-csv-label").textContent = "📎 " + f.name + " (" + bulkMembers.length + "명)";
-    document.getElementById("bulk-preview-body").innerHTML = bulkMembers.map(m=>`<tr><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.dept}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.empNo}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.name}</td></tr>`).join("");
+    document.getElementById("bulk-preview-body").innerHTML = bulkMembers.map(m=>{
+      const emp = m.ambiguous ? `<span style="color:#ef4444;font-weight:600">⚠ 동명이인(사번 필요)</span>`
+                : m.empNo ? m.empNo : `<span style="color:#d97706">명단에 없음</span>`;
+      return `<tr><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.dept}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${emp}</td><td style="padding:5px 10px;border-bottom:1px solid #f1f5f9">${m.name}</td></tr>`;
+    }).join("");
     document.getElementById("bulk-count-label").textContent = bulkMembers.length + "명";
     document.getElementById("bulk-preview").style.display = "block";
   };
@@ -1223,17 +1257,26 @@ async function submitBulk() {
   const cnt = parseInt(document.getElementById("bulk-count").value)||1;
   const memo = document.getElementById("bulk-memo").value.trim();
 
-  // 명단 검증 (명단이 등록된 경우에만)
+  // 사번을 특정하지 못한 인원 (동명이인) 제외
   let validMembers = bulkMembers;
+  const ambiguousList = bulkMembers.filter(bm => bm.ambiguous);
+  if(ambiguousList.length > 0) {
+    const names = ambiguousList.map(m => `${m.name}(${m.dept})`).join(", ");
+    if(!confirm(`⚠️ 동명이인이라 사번을 특정할 수 없는 ${ambiguousList.length}명이 있어요:\n${names}\n\n이 인원은 엑셀에 사번을 넣어 따로 신청해주세요.\n이 인원을 제외하고 나머지 ${bulkMembers.length - ambiguousList.length}명만 신청할까요?\n(취소하면 전체 중단)`)) return;
+    validMembers = bulkMembers.filter(bm => !bm.ambiguous);
+    if(!validMembers.length) return alert("신청 가능한 대상자가 없습니다.");
+  }
+  if(members.length === 0 && validMembers.some(bm => !bm.empNo)) return alert("등록 명단이 없어 사번을 찾을 수 없습니다.\n엑셀에 사번을 입력해주세요.");
+  // 명단 검증 (명단이 등록된 경우에만)
   if(members.length > 0) {
-    const invalid = bulkMembers.filter(bm =>
+    const invalid = validMembers.filter(bm =>
       !members.some(m => m.name === bm.name && m.empNo === bm.empNo)
     );
     if(invalid.length > 0) {
       const names = invalid.map(m => `${m.name}(${m.dept})`).join(", ");
-      const proceed = confirm(`⚠️ 등록 명단에 없는 대상자 ${invalid.length}명이 있어요:\n${names}\n\n이 인원을 제외하고 나머지 ${bulkMembers.length - invalid.length}명만 신청할까요?\n(취소하면 전체 중단)`);
+      const proceed = confirm(`⚠️ 등록 명단에 없는 대상자 ${invalid.length}명이 있어요:\n${names}\n\n이 인원을 제외하고 나머지 ${validMembers.length - invalid.length}명만 신청할까요?\n(취소하면 전체 중단)`);
       if(!proceed) return;
-      validMembers = bulkMembers.filter(bm =>
+      validMembers = validMembers.filter(bm =>
         members.some(m => m.name === bm.name && m.empNo === bm.empNo)
       );
       if(!validMembers.length) return alert("신청 가능한 대상자가 없습니다.");
@@ -2695,7 +2738,7 @@ document.addEventListener("DOMContentLoaded", function() { setTimeout(loadAndSho
         </div>
         <!-- CSV 업로드 -->
         <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 Excel 파일 <span style="color:#ef4444">*</span></label>
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 Excel 파일 <span style="color:#ef4444">*</span> <span style="font-weight:400;color:#94a3b8">(부서·이름만 있어도 됩니다. 사번은 명단에서 자동 입력, 동명이인은 사번 필요)</span></label>
           <div class="file-drop" id="bulk-drop-zone" onclick="document.getElementById('bulk-csv-input').click()">
             <span id="bulk-csv-label">클릭하거나 파일을 끌어다 놓으세요</span>
           </div>
