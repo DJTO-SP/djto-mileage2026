@@ -921,14 +921,14 @@ function confirmIdentityNo() {
 
 // ── 활동신청 Step2 (일괄 입력) ──────────────────────
 let rowCount = 0;
-let rowFiles = {}; // rowId -> {name, data}
+let rowFiles = {}; // rowId -> [{name, size, data}, ...]
 
 function renderCatBtns() {} // 미사용 (하위 호환 유지)
 
 function addActivityRow() {
   rowCount++;
   const rid = rowCount;
-  rowFiles[rid] = {name:"", data:null};
+  rowFiles[rid] = [];
 
   const catOptions = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
 
@@ -969,7 +969,8 @@ function addActivityRow() {
       <div class="file-drop" style="padding:10px" onclick="document.getElementById('row-file-input-${rid}').click()">
         <span id="row-file-label-${rid}" style="font-size:12px">${/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "탭하여 파일 선택" : "클릭하거나 파일을 끌어다 놓으세요"}</span>
       </div>
-      <input type="file" id="row-file-input-${rid}" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleRowFile(${rid},this)">
+      <input type="file" id="row-file-input-${rid}" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none" onchange="handleRowFile(${rid},this)">
+      <div id="row-file-list-${rid}" style="margin-top:6px"></div>
     </div>`;
 
   document.getElementById("activity-rows").appendChild(div);
@@ -983,10 +984,8 @@ function addActivityRow() {
   dropZone.addEventListener("drop", e => {
     e.preventDefault();
     dropZone.style.borderColor=""; dropZone.style.background="";
-    const file = e.dataTransfer.files[0];
-    if(!file) return;
-    const fakeInput = { files: [file] };
-    handleRowFile(rid, fakeInput);
+    if(!e.dataTransfer.files.length) return;
+    handleRowFile(rid, { files: e.dataTransfer.files });
   });
 }
 
@@ -1037,18 +1036,52 @@ function onRowCountChange(rid) {
   onRowItemChange(rid);
 }
 
-function handleRowFile(rid, input) {
-  const f=input.files[0]; if(!f) return;
-  const allowed = ['.pdf','.jpg','.jpeg','.png'];
-  const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
-  if(!allowed.includes(ext)){
-    alert("PDF, JPG, PNG 파일만 첨부할 수 있습니다.\n현재 파일: " + f.name);
-    input.value = "";
-    return;
+// 시트 셀(여러 줄) → 배열. 증빙파일명/URL이 여러 개면 줄바꿈으로 구분되어 저장됨
+function splitLines(v) { return String(v||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean); }
+// ── 증빙 첨부 (여러 파일) 공통 ───────────────────────
+const ATTACH_EXTS = ['.pdf','.jpg','.jpeg','.png'];
+const ATTACH_MAX_BYTES = 20*1024*1024; // 한 번에 첨부할 수 있는 총 용량
+function readFileAsDataURL(f) {
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(f); });
+}
+function fmtSize(n) { return n < 1024*1024 ? Math.max(1,Math.round(n/1024))+"KB" : (n/(1024*1024)).toFixed(1)+"MB"; }
+// list에 파일들을 추가 (확장자·중복·총용량 검사)
+async function addAttachFiles(list, fileList) {
+  const rejected = [];
+  let tooBig = false;
+  for(const f of Array.from(fileList||[])) {
+    const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    if(!ATTACH_EXTS.includes(ext)) { rejected.push(f.name); continue; }
+    if(list.some(x=>x.name===f.name && x.size===f.size)) continue;
+    if(list.reduce((s,x)=>s+x.size,0) + f.size > ATTACH_MAX_BYTES) { tooBig = true; break; }
+    list.push({ name:f.name, size:f.size, data: await readFileAsDataURL(f) });
   }
-  const reader=new FileReader();
-  reader.onload=e=>{ rowFiles[rid]={name:f.name,data:e.target.result}; document.getElementById("row-file-label-"+rid).textContent="📎 "+f.name; };
-  reader.readAsDataURL(f);
+  if(rejected.length) alert("PDF, JPG, PNG 파일만 첨부할 수 있습니다.\n제외된 파일: " + rejected.join(", "));
+  if(tooBig) alert("첨부 파일 총 용량은 " + fmtSize(ATTACH_MAX_BYTES) + "까지 가능합니다.\n일부 파일은 추가되지 않았어요.");
+}
+// 서버 전송용 (구버전 서버 호환을 위해 첫 파일은 기존 필드로도 함께 전송)
+function attachPayload(list) {
+  return { files: list.map(x=>({name:x.name, data:x.data})), fileName: list[0]?.name||"", fileData: list[0]?.data||null };
+}
+function attachChipsHtml(list, removeCall) { // removeCall(i) → onclick 문자열
+  return list.map((x,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;background:#f1f5f9;border-radius:6px;padding:4px 8px;margin-top:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${x.name} <span style="color:#94a3b8">(${fmtSize(x.size)})</span></span><button onclick="${removeCall(i)}" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:14px;line-height:1" title="제거">✕</button></div>`).join("");
+}
+
+async function handleRowFile(rid, input) {
+  await addAttachFiles(rowFiles[rid], input.files);
+  if(input.value!==undefined) input.value = "";
+  renderRowFiles(rid);
+}
+function removeRowFile(rid, idx) {
+  rowFiles[rid].splice(idx,1);
+  renderRowFiles(rid);
+}
+function renderRowFiles(rid) {
+  const list = rowFiles[rid]||[];
+  const box = document.getElementById("row-file-list-"+rid);
+  if(box) box.innerHTML = attachChipsHtml(list, i=>`removeRowFile(${rid},${i})`);
+  const lab = document.getElementById("row-file-label-"+rid);
+  if(lab) lab.textContent = list.length ? `파일 추가 (현재 ${list.length}개)` : (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "탭하여 파일 선택" : "클릭하거나 파일을 끌어다 놓으세요");
 }
 
 async function submitAllActivities() {
@@ -1075,8 +1108,7 @@ async function submitAllActivities() {
       points: item.points!==null ? item.points*cnt : null,
       count: cnt,
       memo: document.getElementById("row-memo-"+rid).value.trim(),
-      fileName: rowFiles[rid]?.name||"",
-      fileData: rowFiles[rid]?.data||null
+      ...attachPayload(rowFiles[rid]||[])
     });
   }
 
@@ -1152,11 +1184,20 @@ function updateDdayDisplay(dateStr) {
 
 // ── 일괄 신청 ────────────────────────────────────────
 let bulkMembers = [];
-let bulkAttachFile = null;
-function handleBulkAttach(input) {
-  const f = input.files[0]; if(!f) return;
-  bulkAttachFile = f;
-  document.getElementById("bulk-attach-label").textContent = "📎 " + f.name + " (" + (f.size < 1024*1024 ? Math.round(f.size/1024)+"KB" : (f.size/(1024*1024)).toFixed(1)+"MB") + ")";
+let bulkAttachFiles = [];
+async function handleBulkAttach(input) {
+  await addAttachFiles(bulkAttachFiles, input.files);
+  input.value = "";
+  renderBulkAttach();
+}
+function removeBulkAttach(idx) {
+  bulkAttachFiles.splice(idx,1);
+  renderBulkAttach();
+}
+function renderBulkAttach() {
+  document.getElementById("bulk-attach-label").textContent = bulkAttachFiles.length
+    ? `파일 추가 (현재 ${bulkAttachFiles.length}개)` : "클릭하여 증빙자료 선택 (PDF, JPG, PNG · 여러 개 가능)";
+  document.getElementById("bulk-attach-list").innerHTML = attachChipsHtml(bulkAttachFiles, i=>`removeBulkAttach(${i})`);
 }
 function openBulkModal() {
   // 분야 옵션 채우기
@@ -1169,8 +1210,8 @@ function openBulkModal() {
     });
   }
   bulkMembers = [];
-  bulkAttachFile = null;
-  document.getElementById("bulk-attach-label").textContent = "클릭하여 증빙자료 선택 (PDF, JPG, PNG)";
+  bulkAttachFiles = [];
+  renderBulkAttach();
   document.getElementById("bulk-attach-input").value = "";
   document.getElementById("bulk-csv-label").textContent = "클릭하여 파일 선택 (Excel)";
   document.getElementById("bulk-preview").style.display = "none";
@@ -1297,14 +1338,10 @@ async function submitBulk() {
   if(!confirm(`${validMembers.length}명에게 "${item.name}" 항목을 일괄 신청합니다.${deptMsg}\n\n계속하시겠습니까?`)) return;
   closeBulkModal();
   showLoading(`0 / ${validMembers.length}명 처리 중...`);
-  // 첨부파일을 Base64로 변환 (있는 경우)
-  let attachData = null, attachName = "";
-  if (bulkAttachFile) {
-    attachData = await new Promise((res,rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsDataURL(bulkAttachFile); });
-    attachName = bulkAttachFile.name;
-  }
+  // 첨부파일(여러 개 가능)은 이미 Base64로 읽어둠. 첫 성공 신청에서 업로드하고 나머지는 같은 URL 공유
+  const attach = attachPayload(bulkAttachFiles);
   let success = 0;
-  let sharedFileUrl = "";
+  let sharedFileUrl = "", sharedFileName = "";
   for(let i=0; i<validMembers.length; i++) {
     document.getElementById("loading-msg").textContent = `${i+1} / ${validMembers.length}명 처리 중...`;
     try {
@@ -1318,12 +1355,12 @@ async function submitBulk() {
         points: item.points!==null ? item.points*cnt : null,
         count: cnt,
         memo: memo,
-        fileName: attachName,
-        fileData: (i === 0 && attachData) ? attachData : null,
-        sharedFileUrl: (i > 0 && sharedFileUrl) ? sharedFileUrl : ""
+        ...(sharedFileUrl
+          ? { fileName: sharedFileName, fileData: null, sharedFileUrl }
+          : { ...attach, sharedFileUrl: "" })
       };
       const res = await apiCall(payload);
-      if (i === 0 && res.fileUrl) sharedFileUrl = res.fileUrl;
+      if (!sharedFileUrl && res.fileUrl) { sharedFileUrl = res.fileUrl; sharedFileName = res.fileName || attach.fileName; }
       if(res.success) success++;
       else if(res.error==="STORAGE_FULL"){
         hideLoading();
@@ -1464,7 +1501,7 @@ async function doLookup() {
             <div>
               <div style="font-size:13px;font-weight:600;color:#1e293b">${a["활동항목"]}</div>
               <div style="font-size:12px;color:#94a3b8;margin-top:2px">${a["분야"]} · ${a["건수"]}건${a["메모"]?' · '+a["메모"]:''}</div>
-              ${a["증빙파일명"]?`<div style="font-size:11px;color:#0369a1;margin-top:2px">📎 ${a["증빙파일명"]}</div>`:''}
+              ${a["증빙파일명"]?splitLines(a["증빙파일명"]).map(n=>`<div style="font-size:11px;color:#0369a1;margin-top:2px">📎 ${n}</div>`).join(""):''}
               ${a["반려사유"]?`<div style="font-size:12px;color:#ef4444;background:#fef2f2;border-radius:4px;padding:4px 8px;margin-top:4px">반려사유: ${a["반려사유"]}</div>`:''}
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -1785,7 +1822,7 @@ function applyFilters() {
           <div style="flex:1">
             <div style="font-size:13px;font-weight:600;color:#1e293b">${a["활동항목"]}</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px">${a["분야"]} · ${a["건수"]}건 · ${a["마일리지"]?a["마일리지"]+'점':'점수미정'}${a["메모"]?' · '+a["메모"]:''}</div>
-            ${a["증빙파일URL"]?`<button onclick="openPreview('${a["증빙파일URL"]}','${(a["증빙파일명"]||"증빙파일").replace(/'/g,"\\'")}',event)" style="background:#e0f0ff;color:#0369a1;border:1px solid #bae0ff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;margin-top:4px;font-family:inherit">📎 ${a["증빙파일명"]||"증빙파일"} 미리보기</button>`:''}
+            ${a["증빙파일URL"]?(()=>{ const urls=splitLines(a["증빙파일URL"]), names=splitLines(a["증빙파일명"]); return urls.map((u,i)=>{ const nm=names[i]||(urls.length>1?`증빙파일 ${i+1}`:"증빙파일"); return `<button onclick="openPreview('${u}','${nm.replace(/'/g,"\\'")}',event)" style="background:#e0f0ff;color:#0369a1;border:1px solid #bae0ff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;margin-top:4px;margin-right:4px;font-family:inherit">📎 ${nm} 미리보기</button>`; }).join(""); })():''}
             ${a["반려사유"]?`<div style="font-size:12px;color:#ef4444;margin-top:3px;background:#fef2f2;padding:3px 8px;border-radius:4px">반려사유: ${a["반려사유"]}</div>`:''}
             <div style="font-size:11px;color:#cbd5e1;margin-top:2px">${a["신청일시"]}</div>
           </div>
@@ -2751,7 +2788,8 @@ document.addEventListener("DOMContentLoaded", function() { setTimeout(loadAndSho
           <div class="file-drop" id="bulk-attach-zone" onclick="document.getElementById('bulk-attach-input').click()">
             <span id="bulk-attach-label">클릭하여 증빙자료 선택 (PDF, JPG, PNG)</span>
           </div>
-          <input type="file" id="bulk-attach-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none" onchange="handleBulkAttach(this)">
+          <input type="file" id="bulk-attach-input" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none" onchange="handleBulkAttach(this)">
+          <div id="bulk-attach-list"></div>
         </div>
         <!-- 미리보기 -->
         <div id="bulk-preview" style="display:none;margin-bottom:16px">

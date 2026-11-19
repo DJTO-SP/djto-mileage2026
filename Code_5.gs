@@ -102,25 +102,37 @@ function handleSubmit(data) {
   // 일괄신청에서 공유된 파일 URL이 있으면 그대로 사용
   if (data.sharedFileUrl) {
     fileUrl = data.sharedFileUrl;
-  } else if (data.fileData && data.fileName) {
-    // 용량 여유 확인 (50MB 미만이면 경고)
-    try {
-      const remaining = DriveApp.getStorageLimit() - DriveApp.getStorageUsed();
-      if (remaining < 50 * 1024 * 1024) {
-        return { success: false, error: "STORAGE_FULL" };
-      }
-    } catch(e) {}
-    try {
-      const folder = DriveApp.getFolderById(FOLDER_ID);
-      const base64 = data.fileData.indexOf(",") > -1 ? data.fileData.split(",")[1] : data.fileData;
-      const mimeType = data.fileData.indexOf(";") > -1 ? data.fileData.split(";")[0].split(":")[1] : "application/octet-stream";
-      const blob = Utilities.newBlob(Utilities.base64Decode(base64), mimeType, data.fileName);
-      const file = folder.createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      fileUrl = file.getUrl();
-      fileName = data.fileName;
-    } catch(err) {
-      fileName = data.fileName || "";
+  } else {
+    // 여러 파일(files) 또는 기존 단일 파일(fileName/fileData) 모두 지원
+    const files = (data.files && data.files.length)
+      ? data.files
+      : ((data.fileData && data.fileName) ? [{ name: data.fileName, data: data.fileData }] : []);
+    if (files.length) {
+      // 용량 여유 확인 (50MB 미만이면 경고)
+      try {
+        const remaining = DriveApp.getStorageLimit() - DriveApp.getStorageUsed();
+        if (remaining < 50 * 1024 * 1024) {
+          return { success: false, error: "STORAGE_FULL" };
+        }
+      } catch(e) {}
+      const urls = [], names = [];
+      try {
+        const folder = DriveApp.getFolderById(FOLDER_ID);
+        files.forEach(f => {
+          try {
+            const base64 = f.data.indexOf(",") > -1 ? f.data.split(",")[1] : f.data;
+            const mimeType = f.data.indexOf(";") > -1 ? f.data.split(";")[0].split(":")[1] : "application/octet-stream";
+            const blob = Utilities.newBlob(Utilities.base64Decode(base64), mimeType, f.name);
+            const file = folder.createFile(blob);
+            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            urls.push(file.getUrl());
+            names.push(f.name);
+          } catch(err) {}
+        });
+      } catch(err) {}
+      // 여러 파일은 줄바꿈으로 구분해 한 셀에 저장
+      fileUrl = urls.join("\n");
+      fileName = names.length ? names.join("\n") : (data.fileName || "");
     }
   }
 
@@ -136,7 +148,7 @@ function handleSubmit(data) {
     ""
   ]);
 
-  return { success: true, id: id, fileUrl: fileUrl };
+  return { success: true, id: id, fileUrl: fileUrl, fileName: fileName };
 }
 
 function handleGetAll() {
