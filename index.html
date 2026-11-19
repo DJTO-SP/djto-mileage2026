@@ -2710,8 +2710,9 @@ document.addEventListener("DOMContentLoaded", function() { setTimeout(loadAndSho
         </div>
         <div style="background:#f0f6ff;border-radius:8px;padding:12px 14px;font-size:13px;color:#1e40af;margin-bottom:16px;border-left:3px solid #3b82f6">
           <div style="font-weight:600;margin-bottom:4px">Excel 파일 형식 안내</div>
-          <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,사번,이름</code></div>
-          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀 | 2024001 | 홍길동</code></div>
+          <div>첫 번째 행: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">부서명,이름</code> <span style="color:#16a34a;font-weight:600">(사번은 입력하지 않아도 됩니다)</span></div>
+          <div style="margin-top:2px">예시: <code style="background:#dbeafe;padding:2px 6px;border-radius:4px">인사노무팀 | 홍길동</code></div>
+          <div style="margin-top:4px;font-size:12px;color:#64748b">※ 사번은 등록 명단에서 자동으로 채워집니다. 동명이인(예: 박승희)은 <code style="background:#dbeafe;padding:1px 5px;border-radius:4px">부서명,사번,이름</code> 형식으로 사번을 함께 입력해주세요.</div>
         </div>
         <!-- 활동 선택 -->
         <div style="margin-bottom:14px">
@@ -2738,7 +2739,7 @@ document.addEventListener("DOMContentLoaded", function() { setTimeout(loadAndSho
         </div>
         <!-- CSV 업로드 -->
         <div style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 Excel 파일 <span style="color:#ef4444">*</span> <span style="font-weight:400;color:#94a3b8">(부서·이름만 있어도 됩니다. 사번은 명단에서 자동 입력, 동명이인은 사번 필요)</span></label>
+          <label style="font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;display:block">대상자 Excel 파일 <span style="color:#ef4444">*</span></label>
           <div class="file-drop" id="bulk-drop-zone" onclick="document.getElementById('bulk-csv-input').click()">
             <span id="bulk-csv-label">클릭하거나 파일을 끌어다 놓으세요</span>
           </div>
